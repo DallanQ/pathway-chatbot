@@ -1,1 +1,1 @@
-DATA_DIR = "data"
+DATA_DIR = "../../pathway-indexer/data"
