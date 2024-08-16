@@ -1,4 +1,4 @@
-FROM python:3.11 as build
+FROM python:3.12 as build
 
 WORKDIR /app
 ARG NEXT_PUBLIC_CHAT_API
