@@ -3,4 +3,3 @@ storage
 .env
 output
 chroma/
-data/
