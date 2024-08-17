@@ -1,5 +1,5 @@
 {
-  "name": "pathway-chatbot",
+  "name": "chatbot",
   "version": "0.1.0",
   "scripts": {
     "format": "prettier --ignore-unknown --cache --check .",

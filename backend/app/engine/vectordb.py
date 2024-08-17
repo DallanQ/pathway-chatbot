@@ -1,24 +1,19 @@
 import os
-from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.vector_stores.pinecone import PineconeVectorStore
 
 
 def get_vector_store():
-    collection_name = os.getenv("CHROMA_COLLECTION", "default")
-    chroma_path = os.getenv("CHROMA_PATH")
-    # if CHROMA_PATH is set, use a local ChromaVectorStore from the path
-    # otherwise, use a remote ChromaVectorStore (ChromaDB Cloud is not supported yet)
-    if chroma_path:
-        store = ChromaVectorStore.from_params(
-            persist_dir=chroma_path, collection_name=collection_name
+    api_key = os.getenv("PINECONE_API_KEY")
+    index_name = os.getenv("PINECONE_INDEX_NAME")
+    environment = os.getenv("PINECONE_ENVIRONMENT")
+    if not api_key or not index_name or not environment:
+        raise ValueError(
+            "Please set PINECONE_API_KEY, PINECONE_INDEX_NAME, and PINECONE_ENVIRONMENT"
+            " to your environment variables or config them in the .env file"
         )
-    else:
-        if not os.getenv("CHROMA_HOST") or not os.getenv("CHROMA_PORT"):
-            raise ValueError(
-                "Please provide either CHROMA_PATH or CHROMA_HOST and CHROMA_PORT"
-            )
-        store = ChromaVectorStore.from_params(
-            host=os.getenv("CHROMA_HOST"),
-            port=int(os.getenv("CHROMA_PORT")),
-            collection_name=collection_name,
-        )
+    store = PineconeVectorStore(
+        api_key=api_key,
+        index_name=index_name,
+        environment=environment,
+    )
     return store
