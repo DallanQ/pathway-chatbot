@@ -42,7 +42,11 @@ export function ChatSources({ data }: { data: SourceData }) {
       <div className="font-semibold text-lg">Sources:</div>
       <ul style={{listStyleType: "disc", marginLeft: "20px"}}>
         {documents.map((document) => {
-          return <li><a href={document.url} key={document.url}>{document.url}</a></li>;
+          return (
+            <li key={document.url}>
+              <a href={document.url}>{document.url}</a>
+            </li>
+          );
           // return <DocumentInfo key={document.url} document={document} />;
         })};
       </ul>
