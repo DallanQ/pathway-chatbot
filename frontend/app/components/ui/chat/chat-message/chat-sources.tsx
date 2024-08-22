@@ -40,11 +40,12 @@ export function ChatSources({ data }: { data: SourceData }) {
   return (
     <div className="space-y-2 text-sm">
       <div className="font-semibold text-lg">Sources:</div>
-      <div className="flex gap-3 flex-wrap">
+      <ul style={{listStyleType: "disc", marginLeft: "20px"}}>
         {documents.map((document) => {
-          return <DocumentInfo key={document.url} document={document} />;
-        })}
-      </div>
+          return <li><a href={document.url} key={document.url}>{document.url}</a></li>;
+          // return <DocumentInfo key={document.url} document={document} />;
+        })};
+      </ul>
     </div>
   );
 }
