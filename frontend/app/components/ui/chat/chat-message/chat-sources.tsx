@@ -40,11 +40,16 @@ export function ChatSources({ data }: { data: SourceData }) {
   return (
     <div className="space-y-2 text-sm">
       <div className="font-semibold text-lg">Sources:</div>
-      <div className="flex gap-3 flex-wrap">
-        {documents.map((document) => {
-          return <DocumentInfo key={document.url} document={document} />;
+      <ul style={{listStyleType: "disc", marginLeft: "20px"}}>
+        {documents.map((document, index) => {
+          return (
+            <li key={index}>
+              <a href={document.url} className="hover:underline">{document.url}</a>
+            </li>
+          )
+          // return <DocumentInfo key={document.url} document={document} />;
         })}
-      </div>
+      </ul>
     </div>
   );
 }
@@ -104,6 +109,7 @@ function DocumentInfo({ document }: { document: Document }) {
   const fileExt = fileName?.split(".").pop();
   const fileImage = fileExt ? FileIcon[fileExt as DocumentFileType] : null;
 
+  console.log("DocumentInfo")
   const DocumentDetail = (
     <div
       key={url}
