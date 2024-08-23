@@ -1,8 +1,11 @@
 import os
+import yaml
 import logging
 from typing import Dict
 from llama_parse import LlamaParse
 from pydantic import BaseModel
+from llama_index.core.readers import SimpleDirectoryReader
+import nest_asyncio
 
 from app.config import DATA_DIR
 
@@ -28,6 +31,31 @@ def llama_parse_parser():
     return parser
 
 
+# function to get metadata 
+def extract_url_from_markdown(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        
+        # Check if the file is not empty and starts with YAML front matter
+        if lines and lines[0].strip() == '---':
+            # Find where the front matter ends
+            end_index = None
+            for i in range(1, len(lines)):
+                if lines[i].strip() == '---':
+                    end_index = i
+                    break
+            
+            if end_index:
+                # Extract the YAML front matter
+                yaml_content = ''.join(lines[1:end_index])
+                metadata = yaml.safe_load(yaml_content)
+                
+                # Extract the URL from the metadata if it exists
+                if 'url' in metadata:
+                    return metadata['url']
+    
+    return "https://www.byupathway.edu/"
+
 def llama_parse_extractor() -> Dict[str, LlamaParse]:
     from llama_parse.utils import SUPPORTED_FILE_TYPES
 
@@ -35,40 +63,49 @@ def llama_parse_extractor() -> Dict[str, LlamaParse]:
     return {file_type: parser for file_type in SUPPORTED_FILE_TYPES}
 
 
-def get_file_documents(config: FileLoaderConfig):
-    from llama_index.core.readers import SimpleDirectoryReader
 
+
+def get_file_documents(config: FileLoaderConfig):
     try:
+        # Apply nest_asyncio if using llama_parse
         file_extractor = None
         if config.use_llama_parse:
-            # LlamaParse is async first,
-            # so we need to use nest_asyncio to run it in sync mode
-            import nest_asyncio
-
             nest_asyncio.apply()
-
             file_extractor = llama_parse_extractor()
+
+        # Custom file metadata extractor function
+        def file_metadata_extractor(file_path):
+            if file_path.endswith('.md'):
+                url = extract_url_from_markdown(file_path)
+                if url:
+                    return {'url': url}
+            return {}
+
+        # Reader to process files
         reader = SimpleDirectoryReader(
             DATA_DIR,
             recursive=True,
             filename_as_id=True,
             raise_on_error=True,
             file_extractor=file_extractor,
+            file_metadata=file_metadata_extractor,  # Use the custom metadata extractor
         )
+        
         return reader.load_data()
+
     except Exception as e:
         import sys
         import traceback
 
-        # Catch the error if the data dir is empty
-        # and return as empty document list
+        # Catch the error if the data dir is empty and return an empty document list
         _, _, exc_traceback = sys.exc_info()
         function_name = traceback.extract_tb(exc_traceback)[-1].name
         if function_name == "_add_files":
             logger.warning(
-                f"Failed to load file documents, error message: {e} . Return as empty document list."
+                f"Failed to load file documents, error message: {e}. Return as empty document list."
             )
             return []
         else:
-            # Raise the error if it is not the case of empty data dir
+            # Raise the error if it is not the case of an empty data dir
             raise e
+

@@ -5,7 +5,7 @@ load_dotenv()
 
 import logging
 import os
-
+from app.engine.loaders.file import extract_url_from_markdown
 from app.engine.loaders import get_documents
 from app.engine.vectordb import get_vector_store
 from app.settings import init_settings
@@ -67,6 +67,8 @@ def generate_datasource():
     # Set private=false to mark the document as public (required for filtering)
     for doc in documents:
         doc.metadata["private"] = "false"
+        # doc.metadata["url"] = 
+        logger.info(f"URL = {doc.metadata['url']}")
     docstore = get_doc_store()
     vector_store = get_vector_store()
 
@@ -81,3 +83,4 @@ def generate_datasource():
 
 if __name__ == "__main__":
     generate_datasource()
+# That is okay

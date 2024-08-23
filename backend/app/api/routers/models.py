@@ -160,6 +160,7 @@ class SourceNodes(BaseModel):
     def from_source_node(cls, source_node: NodeWithScore):
         metadata = source_node.node.metadata
         url = cls.get_url_from_metadata(metadata)
+        logger.info(f"Metadata{metadata}")
 
         return cls(
             id=source_node.node.node_id,
@@ -171,33 +172,33 @@ class SourceNodes(BaseModel):
 
     @classmethod
     def get_url_from_metadata(cls, metadata: Dict[str, Any]) -> str:
-        url_prefix = os.getenv("FILESERVER_URL_PREFIX")
-        if not url_prefix:
-            logger.warning(
-                "Warning: FILESERVER_URL_PREFIX not set in environment variables. Can't use file server"
-            )
-        file_name = metadata.get("file_name")
+        # url_prefix = os.getenv("FILESERVER_URL_PREFIX")
+        # if not url_prefix:
+        #     logger.warning(
+        #         "Warning: FILESERVER_URL_PREFIX not set in environment variables. Can't use file server"
+        #     )
+        # file_name = metadata.get("file_name")
 
-        if file_name and url_prefix:
-            # file_name exists and file server is configured
-            pipeline_id = metadata.get("pipeline_id")
-            if pipeline_id:
-                # file is from LlamaCloud
-                file_name = f"{pipeline_id}${file_name}"
-                return f"{url_prefix}/output/llamacloud/{file_name}"
-            is_private = metadata.get("private", "false") == "true"
-            if is_private:
-                # file is a private upload
-                return f"{url_prefix}/output/uploaded/{file_name}"
-            # file is from calling the 'generate' script
-            # Get the relative path of file_path to data_dir
-            file_path = metadata.get("file_path")
-            data_dir = os.path.abspath(DATA_DIR)
-            if file_path and data_dir:
-                relative_path = os.path.relpath(file_path, data_dir)
-                return f"{url_prefix}/data/{relative_path}"
+        # if file_name and url_prefix:
+        #     # file_name exists and file server is configured
+        #     pipeline_id = metadata.get("pipeline_id")
+        #     if pipeline_id:
+        #         # file is from LlamaCloud
+        #         file_name = f"{pipeline_id}${file_name}"
+        #         return f"{url_prefix}/output/llamacloud/{file_name}"
+        #     is_private = metadata.get("private", "false") == "true"
+        #     if is_private:
+        #         # file is a private upload
+        #         return f"{url_prefix}/output/uploaded/{file_name}"
+        #     # file is from calling the 'generate' script
+        #     # Get the relative path of file_path to data_dir
+        #     file_path = metadata.get("file_path")
+        #     data_dir = os.path.abspath(DATA_DIR)
+        #     if file_path and data_dir:
+        #         relative_path = os.path.relpath(file_path, data_dir)
+        #         return f"{url_prefix}/data/{relative_path}"
         # fallback to URL in metadata (e.g. for websites)
-        return metadata.get("URL")
+        return metadata.get("url")
 
     @classmethod
     def from_source_nodes(cls, source_nodes: List[NodeWithScore]):

@@ -44,7 +44,8 @@ async def chat(
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
 
         response = await chat_engine.astream_chat(last_message_content, messages)
-        process_response_nodes(response.source_nodes, background_tasks)
+        # process_response_nodes(response.source_nodes, background_tasks)
+        
 
         return VercelStreamResponse(request, event_handler, response, data)
     except Exception as e:
@@ -74,7 +75,7 @@ async def chat_request(
 def process_response_nodes(
     nodes: List[NodeWithScore],
     background_tasks: BackgroundTasks,
-):
+): 
     try:
         # Start background tasks to download documents from LlamaCloud if needed
         from app.engine.service import LLamaCloudFileService
