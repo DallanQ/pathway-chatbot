@@ -32,6 +32,10 @@ version = "^0.8"
 [tool.poetry.dependencies.llama-index-agent-openai]
 version = "0.2.6"
 
+
+[tool.poetry.group.dev.dependencies]
+jupyterlab = "^4.2.5"
+
 [build-system]
 requires = [ "poetry-core" ]
 build-backend = "poetry.core.masonry.api"
