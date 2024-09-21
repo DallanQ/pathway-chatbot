@@ -43,34 +43,6 @@ export function ChatSources({ data }: { data: SourceData }) {
     .flatMap(document => document.sources)
     .sort((a, b) => a.citation_node_id.localeCompare(b.citation_node_id));
 
-
-            // First approach
-          // return (
-          //   <li key={index}>
-          //     <a href={document.url} className="hover:underline">{document.url}</a>
-          //   </li>
-          // )
-          // return <DocumentInfo key={document.url} document={document} />;
-
-  // return (
-  //   <div className="space-y-2 text-sm">
-  //     <div className="font-semibold text-lg">Sources:</div>
-  //     <ul style={{listStyleType: "disc", marginLeft: "20px"}}>
-  //     {/* // Information source */}
-  //       {documents.map((document, index) => {
-  //         return document.sources.map((node: SourceNode, index: number) =>  (
-  //             <li key={index}>
-  //               <a href={node.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-  //                 {node.citation_node_id}. {node.url}
-  //               </a>
-  //             </li>
-  //         ))
-  //       })}
-        
-  //     </ul>
-  //   </div>
-  // );
-
     return (
       <div className="space-y-2 text-sm">
         <div className="font-semibold text-lg">Sources:</div>
