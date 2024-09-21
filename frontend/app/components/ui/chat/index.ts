@@ -40,6 +40,7 @@ export type DocumentFileData = {
 
 export type SourceNode = {
   id: string;
+  citation_node_id: string;
   metadata: Record<string, unknown>;
   score?: number;
   text: string;
