@@ -1,6 +1,6 @@
 import logging
-from typing import List
-
+from typing import Tuple, List, Dict, Any
+from collections import defaultdict
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from llama_index.core.chat_engine.types import BaseChatEngine, NodeWithScore
 from llama_index.core.llms import MessageRole
@@ -72,10 +72,73 @@ async def chat_request(
     )
 
 
+
+def split_header_content(text: str) -> Tuple[str, str]:
+    lines = text.split('\n', 1)
+    if len(lines) > 1:
+        return lines[0] + '\n', lines[1]
+    return '', text
+
+def organize_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    # Step 1: Group nodes by page (URL)
+    pages = defaultdict(list)
+    for node in nodes:
+        url = node.metadata['url']
+        pages[url].append(node)
+    
+    # Step 2: Order nodes on each page by sequence number
+    for url, page_nodes in pages.items():
+        pages[url] = sorted(page_nodes, key=lambda x: x.metadata['sequence'])
+    
+    # Step 3: Merge overlapping nodes
+    organized_pages = {}
+    for url, page_nodes in pages.items():
+        merged_nodes = merge_nodes_with_headers(page_nodes)
+        organized_pages[url] = merged_nodes
+    
+    return organized_pages
+
+def merge_nodes_with_headers(nodes: List[Dict[str, Any]]) -> List[str]:
+    merged_results = []
+    current_merged = ""
+    current_header = ""
+
+    for node in nodes:
+        node_text = node.text
+        header, content = split_header_content(node_text)
+
+        if header != current_header:
+            if current_merged:
+                merged_results.append(current_header + current_merged)
+            current_header = header
+            current_merged = content
+        else:
+            current_merged = merge_content(current_merged, content)
+
+    if current_merged:
+        merged_results.append(current_header + current_merged)
+
+    return merged_results
+
+def split_header_content(text: str) -> Tuple[str, str]:
+    lines = text.split('\n', 1)
+    if len(lines) > 1:
+        return lines[0] + '\n', lines[1]
+    return '', text
+
+def merge_content(existing: str, new: str) -> str:
+    # This is a simple merge function. You might need to implement
+    # a more sophisticated merging logic based on your specific requirements.
+    combined = existing + ' ' + new
+    words = combined.split()
+    return ' '.join(sorted(set(words), key=words.index))
+
 def process_response_nodes(
     nodes: List[NodeWithScore],
     background_tasks: BackgroundTasks,
 ): 
+    # organize_nodes(nodes)
+    
     try:
         # Start background tasks to download documents from LlamaCloud if needed
         from app.engine.service import LLamaCloudFileService
