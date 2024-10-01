@@ -8,7 +8,6 @@ from llama_index.core.schema import MetadataMode, NodeWithScore
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
 from llama_index.core.callbacks import CallbackManager, trace_method
 from llama_index.core.types import Thread
-from llama_index.core.schema import TextNode, NodeWithScore
 
 
 from app.engine.custom_node_with_score import CustomNodeWithScore
@@ -23,105 +22,37 @@ from llama_index.core.chat_engine.types import (
 
 logger = logging.getLogger(__name__)
 
-def node_to_dict(node) -> Dict[str, Any]:
-    return {
-        'text': node.get_text(),
-        'metadata': node.metadata
-    }
-
-# Modified organize_nodes to handle dictionary keys
-def organize_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, List[str]]:
-    # Step 1: Group nodes by page (URL)
-    pages = defaultdict(list)
-    for node in nodes:
-        url = node['metadata']['url']  # Access 'metadata' using dictionary key
-        pages[url].append(node)
-    
-    # Step 2: Order nodes on each page by sequence number
-    for url, page_nodes in pages.items():
-        pages[url] = sorted(page_nodes, key=lambda x: x['metadata']['sequence'])
-    
-    # Step 3: Merge overlapping nodes
-    organized_pages = {}
-    for url, page_nodes in pages.items():
-        merged_nodes = merge_nodes_with_headers(page_nodes)
-        organized_pages[url] = merged_nodes
-    
-    return organized_pages
-
-def merge_nodes_with_headers(nodes: List[Dict[str, Any]]) -> List[str]:
-    merged_results = []
-    current_merged = ""
-    current_header = ""
-
-    for node in nodes:
-        node_text = node['text']  # Access 'text' using dictionary key
-        header, content = split_header_content(node_text)
-
-        if header != current_header:
-            if current_merged:
-                merged_results.append(current_header + current_merged)
-            current_header = header
-            current_merged = content
-        else:
-            current_merged = merge_content(current_merged, content)
-
-    if current_merged:
-        merged_results.append(current_header + current_merged)
-
-    return merged_results
-
-def split_header_content(text: str) -> Tuple[str, str]:
-    lines = text.split('\n', 1)
-    if len(lines) > 1:
-        return lines[0] + '\n', lines[1]
-    return '', text
-
-def merge_content(existing: str, new: str) -> str:
-    combined = existing + ' ' + new
-    words = combined.split()
-    return ' '.join(sorted(set(words), key=words.index))
-
 class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
-
-    def _retrieve_context(self, message: str) -> Tuple[str, List[CustomNodeWithScore]]:
+    
+    def _retrieve_context(self, message: str) -> Tuple[str, List[NodeWithScore]]:
         """Build context for a message from retriever."""
         nodes = self._retriever.retrieve(message)
         for postprocessor in self._node_postprocessors:
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
+        print(len(nodes))
 
-        # Step 1: Organize nodes based on the provided utility functions
-        nodes_list = [node_to_dict(node) for node in nodes]  # Convert nodes to dictionary format
-        organized_nodes = organize_nodes(nodes_list)
-        # logging.debug(organized_nodes)
+        # **Organize nodes using the earlier functions**
+        organized_nodes = self._organize_nodes(nodes)
+        print(len(organized_nodes))
 
-        # Step 2: Custom formatting of context_str
-        context_str = "We have {} nodes grouped by URLs:\n".format(len(organized_nodes))
+        # Custom formatting of context_str
+        context_str = "We have {} nodes:\n".format(len(organized_nodes))
+        
         nodes_with_citation_node_id = []
         
-        node_counter = 1
-        for url, grouped_nodes in organized_nodes.items():
-            context_str += f'URL: {url}\n'
-            for node_text in grouped_nodes:
-                context_str += f'node_id: {node_counter}\ntext: {node_text}\n\n'
-                
-                # Create a new TextNode instance with the correct attributes
-                new_node = TextNode(
-                    text=node_text,
-                    metadata={"url": url}
-                )
-                
-                # Create a new CustomNodeWithScore using the TextNode instance
-                custom_node_with_score = CustomNodeWithScore(
-                    node=new_node,  # Pass the TextNode instance
-                    score=None
-                )
-                custom_node_with_score.citation_node_id = str(node_counter)
-                nodes_with_citation_node_id.append(custom_node_with_score)
-                node_counter += 1
+        for i, node_with_score in enumerate(organized_nodes, start=1):
+            node_text = node_with_score.node.get_text()
+            context_str += f'node_id: {i}\ntext: {node_text}\n\n'
 
+            # Create a new node with citation_node_id
+            new_node = CustomNodeWithScore(node=node_with_score.node, score=node_with_score.score)
+
+            # Assign citation_node_id to the new node
+            new_node.citation_node_id = str(i)
+            nodes_with_citation_node_id.append(new_node)
+            
         return context_str, nodes_with_citation_node_id
 
     async def _aretrieve_context(self, message: str) -> Tuple[str, List[CustomNodeWithScore]]:
@@ -131,35 +62,92 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
+        print(len(nodes))
+        # **Organize nodes using the earlier functions**
+        organized_nodes = self._organize_nodes(nodes)
+        print(len(organized_nodes))
 
-        # Step 1: Organize nodes based on the provided utility functions
-        nodes_list = [node_to_dict(node) for node in nodes]  # Convert nodes to dictionary format
-        organized_nodes = organize_nodes(nodes_list)
-        # logging.debug(organized_nodes)
-
-        # Step 2: Custom formatting of context_str
-        context_str = "We have {} nodes grouped by URLs:\n".format(len(organized_nodes))
+        # Custom formatting of context_str
+        context_str = "We have {} nodes:\n".format(len(organized_nodes))
+        
         nodes_with_citation_node_id = []
         
-        node_counter = 1
-        for url, grouped_nodes in organized_nodes.items():
-            context_str += f'URL: {url}\n'
-            for node_text in grouped_nodes:
-                context_str += f'node_id: {node_counter}\ntext: {node_text}\n\n'
-                
-                # Create a new TextNode instance with the correct attributes
-                new_node = TextNode(
-                    text=node_text,
-                    metadata={"url": url}
-                )
+        for i, node_with_score in enumerate(organized_nodes, start=1):
+            node_text = node_with_score.node.get_text()
+            context_str += f'node_id: {i}\ntext: {node_text}\n\n'
 
-                # Create a new CustomNodeWithScore using the TextNode instance
-                custom_node_with_score = CustomNodeWithScore(
-                    node=new_node,  # Pass the TextNode instance
-                    score=None
-                )
-                custom_node_with_score.citation_node_id = str(node_counter)
-                nodes_with_citation_node_id.append(custom_node_with_score)
-                node_counter += 1
+            # Create a new node with citation_node_id
+            new_node = CustomNodeWithScore(node=node_with_score.node, score=node_with_score.score)
+
+            # Assign citation_node_id to the new node
+            new_node.citation_node_id = str(i)
+            nodes_with_citation_node_id.append(new_node)
 
         return context_str, nodes_with_citation_node_id
+
+    def _organize_nodes(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
+        """Organize nodes by URL, sequence, and merge overlapping nodes."""
+        # Step 1: Group nodes by page (URL)
+        pages = defaultdict(list)
+        for node_with_score in nodes:
+            node = node_with_score.node
+            url = node.metadata.get('url', 'unknown_url')
+            pages[url].append(node_with_score)
+        
+        # Step 2: Order nodes on each page by sequence number
+        for url, page_nodes in pages.items():
+            pages[url] = sorted(page_nodes, key=lambda x: x.node.metadata.get('sequence', 0))
+        
+        # Step 3: Merge overlapping nodes
+        organized_nodes = []
+        for url, page_nodes in pages.items():
+            merged_nodes = self._merge_nodes_with_headers(page_nodes)
+            organized_nodes.extend(merged_nodes)
+        
+        return organized_nodes
+
+    def _merge_nodes_with_headers(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
+        """Merge nodes with the same headers and remove duplicate words."""
+        merged_results = []
+        current_merged_text = ""
+        current_header = ""
+        current_node_with_score = None
+
+        for node_with_score in nodes:
+            node = node_with_score.node
+            node_text = node.get_text()
+            header, content = self._split_header_content(node_text)
+
+            if header != current_header:
+                if current_node_with_score:
+                    # Update the text of the current node
+                    current_node_with_score.node.text = current_header + current_merged_text
+                    merged_results.append(current_node_with_score)
+                current_header = header
+                current_merged_text = content
+                current_node_with_score = node_with_score
+            else:
+                # Merge content and update score
+                current_merged_text = self._merge_content(current_merged_text, content)
+                # Example: average the scores
+                current_node_with_score.score = (current_node_with_score.score + node_with_score.score) / 2
+
+        if current_node_with_score:
+            # Update the text of the last node
+            current_node_with_score.node.text = current_header + current_merged_text
+            merged_results.append(current_node_with_score)
+        
+        return merged_results
+
+    def _split_header_content(self, text: str) -> Tuple[str, str]:
+        """Split the text into header and content."""
+        lines = text.split('\n', 1)
+        if len(lines) > 1:
+            return lines[0] + '\n', lines[1]
+        return '', text
+
+    def _merge_content(self, existing: str, new: str) -> str:
+        """Merge two content strings, removing duplicate words."""
+        combined = existing + ' ' + new
+        words = combined.split()
+        return ' '.join(sorted(set(words), key=words.index))
