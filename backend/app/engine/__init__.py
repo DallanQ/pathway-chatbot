@@ -60,14 +60,22 @@ def get_chat_engine(filters=None, params=None):
     
     Instruction: Based on the above documents, provide a detailed answer for the user question below. Ensure that each statement is clearly cited, e.g., "This is the answer based on the source [^1]. This is part of the answer [^2]..."
     """
+    
+    CONDENSE_PROMPT_TEMPLATE = """
+    Based on the following follow-up question from the user,
+    rephrase it to form a complete, standalone question.
+    
+    Follow Up Input: {question}
+    Standalone question:
+    """
 
     system_prompt = f"{system_prompt}\n{SYSTEM_CITATION_PROMPT}"
 
     return CustomCondensePlusContextChatEngine.from_defaults(
-        # condense_prompt=
-        context_prompt=CONTEXT_PROMPT,
         system_prompt=system_prompt,
+        context_prompt=CONTEXT_PROMPT,
+        condense_prompt=CONDENSE_PROMPT_TEMPLATE,
         retriever=retriever,
         node_postprocessors=node_postprocessors,
-        # verbose=True,
+        verbose=True,
     )
