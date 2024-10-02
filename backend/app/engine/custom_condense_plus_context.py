@@ -31,11 +31,14 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
+        
         print(len(nodes))
+        print(nodes)
 
         # **Organize nodes using the earlier functions**
         organized_nodes = self._organize_nodes(nodes)
         print(len(organized_nodes))
+        print(organized_nodes)
 
         # Custom formatting of context_str
         context_str = "We have {} nodes:\n".format(len(organized_nodes))
@@ -63,9 +66,13 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
                 nodes, query_bundle=QueryBundle(message)
             )
         print(len(nodes))
+        print(nodes)
         # **Organize nodes using the earlier functions**
         organized_nodes = self._organize_nodes(nodes)
         print(len(organized_nodes))
+        for node in organized_nodes:
+            print(node.text)
+            print(node.metadata["url"])
 
         # Custom formatting of context_str
         context_str = "We have {} nodes:\n".format(len(organized_nodes))
@@ -107,37 +114,61 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
         return organized_nodes
 
     def _merge_nodes_with_headers(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
-        """Merge nodes with the same headers and remove duplicate words."""
-        merged_results = []
-        current_merged_text = ""
-        current_header = ""
-        current_node_with_score = None
+        """Merge nodes by aligning words and removing duplicates at the same positions."""
+        if not nodes:
+            return []
 
-        for node_with_score in nodes:
-            node = node_with_score.node
-            node_text = node.get_text()
-            header, content = self._split_header_content(node_text)
+        # Use the metadata from the first node
+        merged_node_with_score = nodes[0]
+        total_score = 0.0
 
-            if header != current_header:
-                if current_node_with_score:
-                    # Update the text of the current node
-                    current_node_with_score.node.text = current_header + current_merged_text
-                    merged_results.append(current_node_with_score)
-                current_header = header
-                current_merged_text = content
-                current_node_with_score = node_with_score
+        # Collect lists of words from each node's text
+        texts_words = [node_with_score.node.get_text().split() for node_with_score in nodes]
+        max_length = max(len(words) for words in texts_words)
+
+        merged_words = []
+        for i in range(max_length):
+            words_at_position = []
+            scores_at_position = []
+            for idx, words in enumerate(texts_words):
+                if i < len(words):
+                    words_at_position.append(words[i])
+                    scores_at_position.append(nodes[idx].score)
+                else:
+                    words_at_position.append(None)
+                    scores_at_position.append(nodes[idx].score)
+
+            # Remove None placeholders
+            words_present = [(word, score) for word, score in zip(words_at_position, scores_at_position) if word]
+
+            # If all words at this position are the same, keep one
+            unique_words = set(word for word, _ in words_present)
+            if len(unique_words) == 1:
+                merged_words.append(words_present[0][0])
             else:
-                # Merge content and update score
-                current_merged_text = self._merge_content(current_merged_text, content)
-                # Example: average the scores
-                current_node_with_score.score = (current_node_with_score.score + node_with_score.score) / 2
+                # Choose the word with the highest associated score
+                word_scores = {}
+                for word, score in words_present:
+                    word_scores[word] = word_scores.get(word, 0) + score
+                # Select the word with the highest cumulative score
+                chosen_word = max(word_scores.items(), key=lambda x: x[1])[0]
+                merged_words.append(chosen_word)
 
-        if current_node_with_score:
-            # Update the text of the last node
-            current_node_with_score.node.text = current_header + current_merged_text
-            merged_results.append(current_node_with_score)
-        
-        return merged_results
+        merged_text = ' '.join(merged_words)
+
+        # Sum up the scores for averaging
+        for node_with_score in nodes:
+            total_score += node_with_score.score
+
+        # Calculate the average score
+        average_score = total_score / len(nodes)
+
+        # Update the merged node's text and score
+        merged_node_with_score.node.text = merged_text
+        merged_node_with_score.score = average_score
+
+        return [merged_node_with_score]
+
 
     def _split_header_content(self, text: str) -> Tuple[str, str]:
         """Split the text into header and content."""
