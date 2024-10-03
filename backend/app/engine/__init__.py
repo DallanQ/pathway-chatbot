@@ -53,7 +53,7 @@ def get_chat_engine(filters=None, params=None):
     """
 
     CONTEXT_PROMPT = """
-    Answer the question as truthfully as possible using the numbered contexts below. If the answer is not contained within the text, say "Sorry, I don’t know." Please provide a detailed answer. For each sentence in your answer, include a link to the contexts the sentence came from using the format [^context number].
+    Answer the question as truthfully as possible using the numbered contexts below. If the answer isn't in the text, please say "Sorry, I'm not able to answer this question. Could you rephrase it?" Please provide a detailed answer. For each sentence in your answer, include a link to the contexts the sentence came from using the format [^context number].
 
     Contexts:
     {context_str}
