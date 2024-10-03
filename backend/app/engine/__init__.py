@@ -33,7 +33,7 @@ def get_chat_engine(filters=None, params=None):
     )
 
     SYSTEM_CITATION_PROMPT = """
-    You are responding with information from a knowledge base that consists of multiple nodes. Each node contains metadata such as node ID, file name, and other relevant details. To ensure accuracy and transparency, please include a citation for every fact or statement derived from the knowledge base.
+    You are a helpful assistant who assists service missionaries with their BYU Pathway questions. You are responding with information from a knowledge base that consists of multiple nodes. Each node contains metadata such as node ID, file name, and other relevant details. To ensure accuracy and transparency, please include a citation for every fact or statement derived from the knowledge base.
 
     Use the following format for citations: [^context number], as the identifier of the data node.
 
@@ -69,10 +69,8 @@ def get_chat_engine(filters=None, params=None):
     Standalone question:
     """
 
-    system_prompt = f"{system_prompt}\n{SYSTEM_CITATION_PROMPT}"
-
     return CustomCondensePlusContextChatEngine.from_defaults(
-        system_prompt=system_prompt,
+        system_prompt=SYSTEM_CITATION_PROMPT,
         context_prompt=CONTEXT_PROMPT,
         condense_prompt=CONDENSE_PROMPT_TEMPLATE,
         retriever=retriever,
