@@ -20,7 +20,6 @@ chat_router = r = APIRouter()
 
 logger = logging.getLogger("uvicorn")
 
-
 # streaming endpoint - delete if not needed
 @r.post("")
 async def chat(
@@ -30,8 +29,10 @@ async def chat(
 ):
     try:
         last_message_content = data.get_last_message_content()
+        # Delete the chat_history of the engine and 
+        data.clear_chat_messages()
         messages = data.get_history_messages()
-
+        
         doc_ids = data.get_chat_document_ids()
         filters = generate_filters(doc_ids)
         params = data.data or {}
@@ -39,13 +40,14 @@ async def chat(
             f"Creating chat engine with filters: {str(filters)}",
         )
         chat_engine = get_chat_engine(filters=filters, params=params)
+        # Delete the chat_history from the chat_engine
+        chat_engine.reset()
 
         event_handler = EventCallbackHandler()
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
 
         response = await chat_engine.astream_chat(last_message_content, messages)
         # process_response_nodes(response.source_nodes, background_tasks)
-        
 
         return VercelStreamResponse(request, event_handler, response, data)
     except Exception as e:
@@ -63,15 +65,18 @@ async def chat_request(
     chat_engine: BaseChatEngine = Depends(get_chat_engine),
 ) -> Result:
     last_message_content = data.get_last_message_content()
+    # Delete the chat_history of the engine and 
+    data.clear_chat_messages()
     messages = data.get_history_messages()
 
     response = await chat_engine.achat(last_message_content, messages)
+    # Delete the chat_history from the chat_engine
+    chat_engine.reset()
+    
     return Result(
         result=Message(role=MessageRole.ASSISTANT, content=response.response),
         nodes=SourceNodes.from_source_nodes(response.source_nodes),
     )
-
-
 
 def split_header_content(text: str) -> Tuple[str, str]:
     lines = text.split('\n', 1)
@@ -147,3 +152,4 @@ def process_response_nodes(
     except ImportError:
         logger.debug("LlamaCloud is not configured. Skipping post processing of nodes")
         pass
+        

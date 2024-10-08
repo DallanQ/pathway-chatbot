@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from app.engine.custom_condense_plus_context import CustomCondensePlusContextChatEngine
 
-def get_chat_engine(filters=None, params=None):
+def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatEngine:
     system_prompt = os.getenv("SYSTEM_PROMPT")
     # citation_prompt = os.getenv("SYSTEM_CITATION_PROMPT", None)
     top_k = int(os.getenv("TOP_K", 3))
@@ -76,4 +76,6 @@ def get_chat_engine(filters=None, params=None):
         retriever=retriever,
         node_postprocessors=node_postprocessors,
         verbose=True,
+        chat_history=None,
+        memory=None
     )
