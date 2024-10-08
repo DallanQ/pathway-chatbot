@@ -148,6 +148,10 @@ class ChatData(BaseModel):
                             if fi.content.type == "ref":
                                 document_ids += fi.content.value
         return list(set(document_ids))
+    
+    def clear_chat_messages(self):
+        self.messages = []
+        return self
 
 
 class SourceNodes(BaseModel):
