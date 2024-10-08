@@ -32,13 +32,13 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
                 nodes, query_bundle=QueryBundle(message)
             )
         
-        print(len(nodes))
-        print(nodes)
+        # print(len(nodes))
+        # print(nodes)
 
         # **Organize nodes using the earlier functions**
         organized_nodes = self._organize_nodes(nodes)
-        print(len(organized_nodes))
-        print(organized_nodes)
+        # print(len(organized_nodes))
+        # print(organized_nodes)
 
         # Custom formatting of context_str
         context_str = "We have {} nodes:\n".format(len(organized_nodes))
@@ -65,8 +65,8 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
-        print(len(nodes))
-        print(nodes)
+        # print(len(nodes))
+        # print(nodes)
         # **Organize nodes using the earlier functions**
         organized_nodes = self._organize_nodes(nodes)
         print(len(organized_nodes))
@@ -182,3 +182,11 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
         combined = existing + ' ' + new
         words = combined.split()
         return ' '.join(sorted(set(words), key=words.index))
+    
+    def reset(self) -> None:
+        # Clear chat history
+        self._memory.reset()
+        self.chat_history.clear()
+        
+    def get_chat_history(self) -> List[ChatMessage]:
+        return self.chat_history
