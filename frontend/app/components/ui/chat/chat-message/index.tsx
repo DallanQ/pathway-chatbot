@@ -114,6 +114,17 @@ function ChatMessageContent({
         .map((content, index) => (
           <Fragment key={index}>{content.component}</Fragment>
         ))}
+        <div>
+        If you feel like you didn’t get a correct answer, please look at the site index for more information:
+        <a
+          href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
+            Site Index
+        </a>
+      </div>
     </div>
   );
 }
