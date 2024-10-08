@@ -57,7 +57,8 @@ def init_openai():
     max_tokens = os.getenv("LLM_MAX_TOKENS")
     config = {
         "model": os.getenv("MODEL"),
-        "temperature": float(os.getenv("LLM_TEMPERATURE", 0)),
+        # "temperature": float(os.getenv("LLM_TEMPERATURE", 0)),
+        "temperature": float(0),
         "max_tokens": int(max_tokens) if max_tokens is not None else None,
     }
     Settings.llm = OpenAI(**config)
