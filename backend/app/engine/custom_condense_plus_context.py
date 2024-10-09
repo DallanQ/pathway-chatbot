@@ -1,3 +1,4 @@
+import time
 import asyncio
 import logging
 from typing import Any, List, Optional, Tuple, Dict
@@ -8,6 +9,9 @@ from llama_index.core.schema import MetadataMode, NodeWithScore
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
 from llama_index.core.callbacks import CallbackManager, trace_method
 from llama_index.core.types import Thread
+
+import voyageai
+vo = voyageai.Client()  # This will automatically use the environment variable VOYAGE_API_KEY.
 
 
 from app.engine.custom_node_with_score import CustomNodeWithScore
@@ -32,11 +36,10 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
                 nodes, query_bundle=QueryBundle(message)
             )
         
-        # print(len(nodes))
         # print(nodes)
 
         # **Organize nodes using the earlier functions**
-        organized_nodes = self._organize_nodes(nodes)
+        organized_nodes = self._organize_nodes(nodes, message=message)
         # print(len(organized_nodes))
         # print(organized_nodes)
 
@@ -65,14 +68,15 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
+        
         # print(len(nodes))
         # print(nodes)
         # **Organize nodes using the earlier functions**
-        organized_nodes = self._organize_nodes(nodes)
-        print(len(organized_nodes))
-        for node in organized_nodes:
-            print(node.text)
-            print(node.metadata["url"])
+        organized_nodes = self._organize_nodes(nodes, message=message)
+        # print(len(organized_nodes))
+        # for node in organized_nodes:
+        #     print(node.text)
+        #     print(node.metadata["url"])
 
         # Custom formatting of context_str
         context_str = "We have {} nodes:\n".format(len(organized_nodes))
@@ -92,20 +96,55 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
 
         return context_str, nodes_with_citation_node_id
 
-    def _organize_nodes(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
+    def _organize_nodes(self, nodes: List[NodeWithScore], message: str = "") -> List[NodeWithScore]:
         """Organize nodes by URL, sequence, and merge overlapping nodes."""
-        # Step 1: Group nodes by page (URL)
+        rerank_model = "rerank-lite-1"
+        rerank_threshold = 0.21
+        rerank_k = 17
+        rerank = True
+        
+        #retrieved_threshold filter is ignored because it's value is 0
+
+        # CHANGED - use node context metadata for text to send to llm
+        node_texts_ordered = [node.text for node in nodes]
+
+        # CHANGED - dedup node texts
+        node_texts = list(set(node_texts_ordered))
+
+        if rerank and len(node_texts) > 1:
+            success = False
+            retries = 0
+            while not success and retries < 3:
+                try:
+                    reranking = vo.rerank(message, node_texts, model=rerank_model, top_k=rerank_k)
+                    node_texts = [r.document for r in reranking.results if r.relevance_score >= rerank_threshold]
+                    # print(f"---\n{node_texts}\n---\n\n")
+                    success = True
+                except:
+                    time.sleep(5) # originally 60
+                    retries += 1
+
+        nodes_ranked = []
+        if len(node_texts) == 0:
+            node_texts = ['qwer asdf']
+        else:
+            # CHANGED - get filtered and reranked nodes
+            nodes_ranked = [nodes[node_texts_ordered.index(node_text)] for node_text in node_texts]
+            # for node_text in node_texts:
+            #     node_text_nodes.append((node_text, nodes[node_texts_ordered.index(node_text)]))
+
+        # Step 5: Group nodes by page (URL)
         pages = defaultdict(list)
-        for node_with_score in nodes:
+        for node_with_score in nodes_ranked:
             node = node_with_score.node
             url = node.metadata.get('url', 'unknown_url')
             pages[url].append(node_with_score)
-        
-        # Step 2: Order nodes on each page by sequence number
+                
+        # Step 6: Order nodes on each page by sequence number
         for url, page_nodes in pages.items():
             pages[url] = sorted(page_nodes, key=lambda x: x.node.metadata.get('sequence', 0))
-        
-        # Step 3: Merge overlapping nodes
+
+        # Step 7: Merge overlapping nodes with the same headers
         organized_nodes = []
         for url, page_nodes in pages.items():
             merged_nodes = self._merge_nodes_with_headers(page_nodes)

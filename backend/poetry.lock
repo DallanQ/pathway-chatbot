@@ -123,6 +123,17 @@ yarl = ">=1.0,<2.0"
 speedups = ["Brotli", "aiodns (>=3.2.0)", "brotlicffi"]
 
 [[package]]
+name = "aiolimiter"
+version = "1.1.0"
+description = "asyncio rate limiter, a leaky bucket implementation"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "aiolimiter-1.1.0-py3-none-any.whl", hash = "sha256:0b4997961fc58b8df40279e739f9cf0d3e255e63e9a44f64df567a8c17241e24"},
+    {file = "aiolimiter-1.1.0.tar.gz", hash = "sha256:461cf02f82a29347340d031626c92853645c099cb5ff85577b831a7bd21132b5"},
+]
+
+[[package]]
 name = "aiosignal"
 version = "1.3.1"
 description = "aiosignal: a list of registered asynchronous callbacks"
@@ -4605,6 +4616,24 @@ docs = ["Sphinx (>=4.1.2,<4.2.0)", "sphinx-rtd-theme (>=0.5.2,<0.6.0)", "sphinxc
 test = ["Cython (>=0.29.36,<0.30.0)", "aiohttp (==3.9.0b0)", "aiohttp (>=3.8.1)", "flake8 (>=5.0,<6.0)", "mypy (>=0.800)", "psutil", "pyOpenSSL (>=23.0.0,<23.1.0)", "pycodestyle (>=2.9.0,<2.10.0)"]
 
 [[package]]
+name = "voyageai"
+version = "0.2.3"
+description = ""
+optional = false
+python-versions = "<4.0.0,>=3.7.1"
+files = [
+    {file = "voyageai-0.2.3-py3-none-any.whl", hash = "sha256:59c4958bd991e83cedb5a82d5e14ac698ce67e42713ea10467631a48ee272b15"},
+    {file = "voyageai-0.2.3.tar.gz", hash = "sha256:28322aa7a64cdaa774be6fcf3e4fd6a08694ea25acd5fadd1eff1b8ef8dab68a"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.5,<4.0"
+aiolimiter = ">=1.1.0,<2.0.0"
+numpy = ">=1.11"
+requests = ">=2.20,<3.0"
+tenacity = ">=8.0.1"
+
+[[package]]
 name = "wasabi"
 version = "1.1.3"
 description = "A lightweight console printing and formatting toolkit"
@@ -5070,4 +5099,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "18568002f7a8c290c7c65358d9c3317f82e6254f0dba22bc2b8df37d36f61cdb"
+content-hash = "421429ec4a2d2fab805945e59b02f1302d1542b3d3c29c426a3e609e9ee12ae1"
