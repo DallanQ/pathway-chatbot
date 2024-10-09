@@ -19,6 +19,7 @@ cachetools = "^5.3.3"
 spacy = "^3.7.5"
 en_core_web_sm ="^3.7.1"
 python-frontmatter = "^1.1.0"
+voyageai = "^0.2.3"
 
 [tool.poetry.dependencies.uvicorn]
 extras = [ "standard" ]
