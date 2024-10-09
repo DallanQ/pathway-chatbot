@@ -115,15 +115,9 @@ function ChatMessageContent({
           <Fragment key={index}>{content.component}</Fragment>
         ))}
         <div>
-        If you feel like you didn’t get a correct answer, please look at the site index for more information:
-        <a
-          href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index"
-          target="_blank"
+        <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
-        >
-            Site Index
-        </a>
+          className="text-blue-600 hover:underline">Site Index</a></p>
       </div>
     </div>
   );
