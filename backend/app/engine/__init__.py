@@ -3,6 +3,7 @@ import os
 from app.engine.index import get_index
 from app.engine.node_postprocessors import NodeCitationProcessor
 from fastapi import HTTPException
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
 
 from app.engine.custom_condense_plus_context import CustomCondensePlusContextChatEngine
 
@@ -12,9 +13,6 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     top_k = int(os.getenv("TOP_K", 3))
 
     node_postprocessors = []
-    # if citation_prompt:
-    #     node_postprocessors = [NodeCitationProcessor()]
-    #     system_prompt = f"{system_prompt}\n{citation_prompt}"
     
     node_postprocessors = [NodeCitationProcessor()]
         
@@ -27,10 +25,16 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
             ),
         )
 
+    retriever_k = 35
+    sparse_k = retriever_k * 5
+    query_mode = VectorStoreQueryMode.DEFAULT
+
     retriever = index.as_retriever(
-        similarity_top_k=top_k,
-        filters=filters,
+        vector_store_query_mode=query_mode,
+        similarity_top_k=retriever_k,
+        sparse_top_k=sparse_k,
     )
+    
 
     SYSTEM_CITATION_PROMPT = """
     You are a helpful assistant who assists service missionaries with their BYU Pathway questions. You are responding with information from a knowledge base that consists of multiple nodes. Each node contains metadata such as node ID, file name, and other relevant details. To ensure accuracy and transparency, please include a citation for every fact or statement derived from the knowledge base.
@@ -49,7 +53,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     Your answer:
     Service missionaries provide essential support by mentoring students and helping them navigate academic and spiritual challenges [^1]. They also receive specialized training to ensure they can effectively serve in this role [^2]. 
 
-    Make sure each piece of referenced information is correctly cited. If you are unsure about a fact, provide clarification to the best of your ability.
+    Make sure each piece of referenced information is correctly cited. **If the information required to answer the question is not available in the retrieved nodes, respond with: "Sorry, I don't know."**
     """
 
     CONTEXT_PROMPT = """
