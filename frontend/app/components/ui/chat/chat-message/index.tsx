@@ -94,17 +94,31 @@ function ChatMessageContent({
     },
     {
       order: 3,
-      component: sourceData[0] ? <ChatSources data={sourceData[0]} /> : null,
+      component: sourceData[0] 
+        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
+        && !message.content.includes("Sorry, I don't know."))
+        ? <ChatSources data={sourceData[0]} />
+        : null,
     },
     {
       order: 4,
-      component: suggestedQuestionsData[0] ? (
+      component: suggestedQuestionsData[0] 
+      && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
+      && !message.content.includes("Sorry, I don't know."))
+      ? (
         <SuggestedQuestions
           questions={suggestedQuestionsData[0]}
           append={append}
         />
+
       ) : null,
     },
+    {
+      order: 5,
+      component: sourceData[0] ? <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:underline">Site Index</a></p> : null,
+    }
   ];
 
   return (
@@ -114,10 +128,7 @@ function ChatMessageContent({
         .map((content, index) => (
           <Fragment key={index}>{content.component}</Fragment>
         ))}
-        <div>
-        <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline">Site Index</a></p>
+      <div>
       </div>
     </div>
   );
