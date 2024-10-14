@@ -40,8 +40,12 @@ export function ChatSources({ data }: { data: SourceData }) {
   if (documents.length === 0) return null;
 
   const sortedSources = documents
-    .flatMap(document => document.sources)
-    .sort((a, b) => a.citation_node_id.localeCompare(b.citation_node_id));
+  .flatMap(document => document.sources)
+  .sort((a, b) => {
+      const getNumber = (url: string) => parseInt(url.match(/^\d+/)?.[0] || '0', 10);
+      return getNumber(a.citation_node_id) - getNumber(b.citation_node_id);
+  });
+
 
     return (
       <div className="space-y-2 text-sm">
