@@ -35,30 +35,6 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
         sparse_top_k=sparse_k,
     )
     
-    # If the provided information is not clear or explicitly stated, do not infer or make assumptions. If uncertain, respond with "I don't know".
-    # SYSTEM_CITATION_PROMPT = """
-    # You are a helpful assistant who assists service missionaries with their BYU Pathway questions. You are responding with information from a knowledge base that consists of multiple nodes. Each node contains metadata such as node ID, file name, and other relevant details. To ensure accuracy and transparency, please include a citation for every fact or statement derived from the knowledge base.
-
-    # Use the following format for citations: [^context number], as the identifier of the data node.
-
-    # Example:
-    # We have two nodes:
-    #   node_id: 1
-    #   text: Information about how service missionaries support BYU Pathway students.
-
-    #   node_id: 2
-    #   text: Details on training for service missionaries.
-
-    # User question: How do service missionaries help students at BYU Pathway?
-    # Your answer:
-    # Service missionaries provide essential support by mentoring students and helping them navigate academic and spiritual challenges [^1]. They also receive specialized training to ensure they can effectively serve in this role [^2]. 
-
-    # Make sure each piece of referenced information is correctly cited. **If the information required to answer the question is not available in the retrieved nodes, respond with: "Sorry, I don't know."**
-
-    # follow this steps in the situations below:
-    # - questions about zoom and canvas, respond only based on the retrieved nodes and not make assumptions.
-    # """
-    
     SYSTEM_CITATION_PROMPT = """
     You are a helpful assistant who assists service missionaries with their BYU Pathway questions. You are responding with information from a knowledge base that consists of multiple nodes. Each node contains metadata such as node ID, file name, and other relevant details. To ensure accuracy and transparency, please include a citation for every fact or statement derived from the knowledge base.
 
