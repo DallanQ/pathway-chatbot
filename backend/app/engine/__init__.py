@@ -8,10 +8,6 @@ from llama_index.core.vector_stores.types import VectorStoreQueryMode
 from app.engine.custom_condense_plus_context import CustomCondensePlusContextChatEngine
 
 def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatEngine:
-    system_prompt = os.getenv("SYSTEM_PROMPT")
-    # citation_prompt = os.getenv("SYSTEM_CITATION_PROMPT", None)
-    top_k = int(os.getenv("TOP_K", 3))
-
     node_postprocessors = []
     
     node_postprocessors = [NodeCitationProcessor()]
