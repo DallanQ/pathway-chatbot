@@ -53,7 +53,7 @@ def eval_prompt(question, ideal, generated, nodes):
     Think step by step and analyze the entire generated answer before giving your score. Compare each situation carefully. Then select the number that best fits the situation.
 
     Return your answer in this format:
-    (Number) - (short and direct justification)
+    Number - (short and direct justification)
     """
 
 
