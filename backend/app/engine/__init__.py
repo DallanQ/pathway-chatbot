@@ -76,6 +76,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - Students can access the BYUI application by going to the degree application page.
     - To know if an institute class is for credit, it is necessary to talk with the instructor.
     - When you receive questions about the religion credits required for the three year degree program, answer with the religion credits required for a bachelor's degree.
+    - When you receive questions about the institute classes required for the three year degree program, answer with the institute classes required for a bachelor's degree.
     """
 
     CONTEXT_PROMPT = """
