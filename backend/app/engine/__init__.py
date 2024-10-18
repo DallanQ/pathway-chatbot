@@ -55,10 +55,10 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - Peer mentor: BYU Pathway students who offer guidance and support to other students. Mentors are not resources for missionaries.
     - Gathering: Online or in-person sessions that students must attend per relevant attendance policies. As missionary is not necessary to report attendance.
     - Canvas: Canvas is the online system used by BYU Pathway students to find course materials and submit their assignments. The students can't access to the zoom link from Canvas.
-    - PATH: System used by service missionaries and others involved with BYU Pathway to access various administrative tools and student information.
     - Student Portal: The student portal is an online platform where BYU Pathway students can access various resources and information related to their studies. Students sign in to their portal at byupathway.org, where they can find their gathering location or Zoom link, view financial information for making payments, access academic course links and print their PathwayConnect certificate.
     - Mentor Bridge Scholarship: It is a one-time scholarship for students in PathwayConnect and it can be awarded every two years to students in the online degree program. 
     - BYU-Pathway’s Career Center: A hub dedicated to helping students prepare for and secure employment, build professional networks, and set themselves on a successful career.
+    - Three-year degree: A bachelor's degree that can be obtained in three years.
     
     Audience: Your primary audience is service missionaries.
 
@@ -70,6 +70,12 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - Missionaries are not required to report student attendance. They may want to keep track of attendance on their own.
     - Missionaries can change the name of the student in the printed certificate only if the student has requested it.
     - The best way to solve Canvas connection issues is by trying the troubleshooting steps first.
+    - Church's Meetinghouse Locator: website to get know the ward/stake close to the person.
+    - Missionaries can see student materials in gathering resources.
+    - internal server error: students can join Canvas directly using a link for canvas authentication.
+    - Students can access the BYUI application by going to the degree application page.
+    - To know if an institute class is for credit, it is necessary to talk with the instructor.
+    - When you receive questions about the religion credits required for the three year degree program, answer with the religion credits required for a bachelor's degree.
     """
 
     CONTEXT_PROMPT = """
