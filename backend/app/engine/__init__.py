@@ -1,5 +1,3 @@
-import os
-
 from app.engine.index import get_index
 from app.engine.node_postprocessors import NodeCitationProcessor
 from fastapi import HTTPException
@@ -71,7 +69,11 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - Missionaries can't access to the student portal.
     - Missionaries are not required to report student attendance. They may want to keep track of attendance on their own.
     - Missionaries can change the name of the student in the printed certificate only if the student has requested it.
+    - The best way to solve Canvas connection issues is by trying the troubleshooting steps first.
     """
+
+    # - Missionaries can see the student course materials in Gathering resources.
+
 
     CONTEXT_PROMPT = """
     Answer the question as truthfully as possible using the numbered contexts below. If the answer isn't in the text, please say "Sorry, I'm not able to answer this question. Could you rephrase it?" Please provide a detailed answer. For each sentence in your answer, include a link to the contexts the sentence came from using the format [^context number].
