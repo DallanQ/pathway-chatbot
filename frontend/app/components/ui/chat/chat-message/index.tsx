@@ -1,7 +1,7 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { Message } from "ai";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import {
@@ -41,6 +41,7 @@ function ChatMessageContent({
 }) {
   const annotations = message.annotations as MessageAnnotation[] | undefined;
   if (!annotations?.length) return <Markdown content={message.content} />;
+
 
   const imageData = getAnnotationData<ImageData>(
     annotations,
@@ -143,6 +144,9 @@ export default function ChatMessage({
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
 }) {
+  const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
+  const [ThumbsUpActive, setThumbsUpActive] = useState(false);
+
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
   return (
     <div className="flex items-start gap-4 pr-5 pt-5">
@@ -153,6 +157,7 @@ export default function ChatMessage({
           isLoading={isLoading}
           append={append}
         />
+        <div>
         <Button
           onClick={() => copyToClipboard(chatMessage.content)}
           size="icon"
@@ -165,6 +170,29 @@ export default function ChatMessage({
             <Copy className="h-4 w-4" />
           )}
         </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+          onClick={() => {
+            setThumbsUpActive(!ThumbsUpActive);
+            setThumbsDownActive(false);
+          }}
+        >
+          <ThumbsUp fill={ThumbsUpActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 opacity-0 group-hover:opacity-100"
+          onClick={() => {
+            setThumbsDownActive(!ThumbsDowmActive);
+            setThumbsUpActive(false);
+          }}
+        >
+          <ThumbsDown fill={ThumbsDowmActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
+        </Button>
+        </div>
       </div>
     </div>
   );
