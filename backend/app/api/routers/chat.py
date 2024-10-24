@@ -77,6 +77,14 @@ async def chat_request(
         result=Message(role=MessageRole.ASSISTANT, content=response.response),
         nodes=SourceNodes.from_source_nodes(response.source_nodes),
     )
+    
+@r.post('/thumbs_up')
+async def thumbs_up():
+    return {"message": "Thumbs up!"} 
+
+@r.post('/thumbs_down')
+async def thumbs_down():
+    return {"message": "Thumbs down!"}
 
 def split_header_content(text: str) -> Tuple[str, str]:
     lines = text.split('\n', 1)
