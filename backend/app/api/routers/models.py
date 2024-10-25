@@ -74,6 +74,7 @@ class Message(BaseModel):
     role: MessageRole
     content: str
     annotations: List[Annotation] | None = None
+    trace_id: str | None = None
 
 
 class ChatData(BaseModel):
