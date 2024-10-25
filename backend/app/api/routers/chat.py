@@ -15,6 +15,8 @@ from app.api.routers.models import (
 from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
+from langfuse.decorators import langfuse_context, observe
+from langfuse.openai import openai
 
 chat_router = r = APIRouter()
 
@@ -22,6 +24,7 @@ logger = logging.getLogger("uvicorn")
 
 # streaming endpoint - delete if not needed
 @r.post("")
+@observe()
 async def chat(
     request: Request,
     data: ChatData,
@@ -47,6 +50,19 @@ async def chat(
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
 
         response = await chat_engine.astream_chat(last_message_content, messages)
+        
+        retrieved = "\n\n".join(
+            [
+                f"node_id: {idx+1}\n{node.metadata['url']}\n{node.text}"
+                for idx, node in enumerate(response.source_nodes)
+            ]
+        )
+        langfuse_context.update_current_trace(
+            input=last_message_content,
+            output=response.response,
+            metadata={"nodes": retrieved}
+        )
+        
         # process_response_nodes(response.source_nodes, background_tasks)
 
         return VercelStreamResponse(request, event_handler, response, data)
@@ -60,6 +76,7 @@ async def chat(
 
 # non-streaming endpoint - delete if not needed
 @r.post("/request")
+@observe()
 async def chat_request(
     data: ChatData,
     chat_engine: BaseChatEngine = Depends(get_chat_engine),
@@ -70,11 +87,29 @@ async def chat_request(
     messages = data.get_history_messages()
 
     response = await chat_engine.achat(last_message_content, messages)
+    
+    retrieved = "\n\n".join(
+        [
+            f"node_id: {idx+1}\n{node.metadata['url']}\n{node.text}"
+            for idx, node in enumerate(response.source_nodes)
+        ]
+    )
+    
+    # Set the input, output and metadata of Langfuse
+    langfuse_context.update_current_trace(
+        input=last_message_content,
+        output=response.response,
+        metadata={"nodes": retrieved}
+    )
+    
+    # Get the trace_id of Langfuse
+    trace_id = langfuse_context.get_current_trace_id()
+
     # Delete the chat_history from the chat_engine
     chat_engine.reset()
     
     return Result(
-        result=Message(role=MessageRole.ASSISTANT, content=response.response),
+        result=Message(role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id),
         nodes=SourceNodes.from_source_nodes(response.source_nodes),
     )
     
