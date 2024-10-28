@@ -50,22 +50,26 @@ async def chat(
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
 
         response = await chat_engine.astream_chat(last_message_content, messages)
-        
+
         retrieved = "\n\n".join(
             [
                 f"node_id: {idx+1}\n{node.metadata['url']}\n{node.text}"
                 for idx, node in enumerate(response.source_nodes)
             ]
         )
+
+        # await response.aprint_response_stream()
+        tokens = []
+        async for token in response.async_response_gen():
+            tokens.append(token)
+            
         langfuse_context.update_current_trace(
             input=last_message_content,
             output=response.response,
-            metadata={"nodes": retrieved}
+            metadata=retrieved
         )
-        
-        # process_response_nodes(response.source_nodes, background_tasks)
 
-        return VercelStreamResponse(request, event_handler, response, data)
+        return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:
         logger.exception("Error in chat engine", exc_info=True)
         raise HTTPException(

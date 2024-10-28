@@ -8,6 +8,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import ChatData, Message, SourceNodes
 from app.api.services.suggestion import NextQuestionSuggestion
+import time
 
 
 class VercelStreamResponse(StreamingResponse):
@@ -35,9 +36,10 @@ class VercelStreamResponse(StreamingResponse):
         event_handler: EventCallbackHandler,
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
+        tokens: list,
     ):
         content = VercelStreamResponse.content_generator(
-            request, event_handler, response, chat_data
+            request, event_handler, response, chat_data, tokens
         )
         super().__init__(content=content)
 
@@ -48,12 +50,14 @@ class VercelStreamResponse(StreamingResponse):
         event_handler: EventCallbackHandler,
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
+        tokens: list,
     ):
         # Yield the text response
         async def _chat_response_generator():
             final_response = ""
-            async for token in response.async_response_gen():
+            for token in tokens:
                 final_response += token
+                time.sleep(0.02)
                 yield VercelStreamResponse.convert_text(token)
 
             # Generate questions that user might interested to
