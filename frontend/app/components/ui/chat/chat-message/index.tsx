@@ -170,28 +170,34 @@ export default function ChatMessage({
             <Copy className="h-4 w-4" />
           )}
         </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 opacity-0 group-hover:opacity-100"
-          onClick={() => {
-            setThumbsUpActive(!ThumbsUpActive);
-            setThumbsDownActive(false);
-          }}
-        >
-          <ThumbsUp fill={ThumbsUpActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 opacity-0 group-hover:opacity-100"
-          onClick={() => {
-            setThumbsDownActive(!ThumbsDowmActive);
-            setThumbsUpActive(false);
-          }}
-        >
-          <ThumbsDown fill={ThumbsDowmActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
-        </Button>
+        {
+          chatMessage.role !== "user" && (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                onClick={() => {
+                  setThumbsUpActive(!ThumbsUpActive);
+                  setThumbsDownActive(false);
+                }}
+              >
+                <ThumbsUp fill={ThumbsUpActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                onClick={() => {
+                  setThumbsDownActive(!ThumbsDowmActive);
+                  setThumbsUpActive(false);
+                }}
+              >
+                <ThumbsDown fill={ThumbsDowmActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
+              </Button>
+            </>
+          )
+        }
         </div>
       </div>
     </div>
