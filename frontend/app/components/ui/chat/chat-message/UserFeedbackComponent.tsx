@@ -23,7 +23,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
     const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
 
     return (
-        <div>
+        <>
             <Button
                 size="icon"
                 variant="ghost"
@@ -48,7 +48,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
             >
                 <ThumbsDown fill={ThumbsDowmActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
             </Button>
-        </div>
+        </>
     );
 }
 
