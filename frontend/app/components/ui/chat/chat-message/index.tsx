@@ -1,7 +1,6 @@
 import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
-
 import { Message } from "ai";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import {
@@ -14,6 +13,7 @@ import {
   SuggestedQuestionsData,
   ToolData,
   getAnnotationData,
+  getLangfuseTraceId,
   getSourceAnnotationData,
 } from "../index";
 import ChatAvatar from "./chat-avatar";
@@ -24,6 +24,7 @@ import { ChatSources } from "./chat-sources";
 import { SuggestedQuestions } from "./chat-suggestedQuestions";
 import ChatTools from "./chat-tools";
 import Markdown from "./markdown";
+import { UserFeedbackComponent } from "./UserFeedbackComponent";
 
 type ContentDisplayConfig = {
   order: number;
@@ -34,14 +35,15 @@ function ChatMessageContent({
   message,
   isLoading,
   append,
+  traceIdRef
 }: {
   message: Message;
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
+  traceIdRef: React.MutableRefObject<string | null>;
 }) {
   const annotations = message.annotations as MessageAnnotation[] | undefined;
   if (!annotations?.length) return <Markdown content={message.content} />;
-
 
   const imageData = getAnnotationData<ImageData>(
     annotations,
@@ -66,6 +68,19 @@ function ChatMessageContent({
     annotations,
     MessageAnnotationType.SUGGESTED_QUESTIONS,
   );
+
+  const trace_id = getLangfuseTraceId(
+    annotations,
+    MessageAnnotationType.LANGFUSE_TRACE_ID,
+  );
+
+  useEffect(() => {
+    console.log("trace_id: ", trace_id?.data);
+
+    if (trace_id?.data) {
+      traceIdRef.current = trace_id.data;
+    }
+  }, [message, traceIdRef]);
 
   const contents: ContentDisplayConfig[] = [
     {
@@ -95,24 +110,24 @@ function ChatMessageContent({
     },
     {
       order: 3,
-      component: sourceData[0] 
-        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-        && !message.content.includes("Sorry, I don't know."))
+      component: sourceData[0]
+        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?")
+          && !message.content.includes("Sorry, I don't know."))
         ? <ChatSources data={sourceData[0]} />
         : null,
     },
     {
       order: 4,
-      component: suggestedQuestionsData[0] 
-      && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-      && !message.content.includes("Sorry, I don't know."))
-      ? (
-        <SuggestedQuestions
-          questions={suggestedQuestionsData[0]}
-          append={append}
-        />
+      component: suggestedQuestionsData[0]
+        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?")
+          && !message.content.includes("Sorry, I don't know."))
+        ? (
+          <SuggestedQuestions
+            questions={suggestedQuestionsData[0]}
+            append={append}
+          />
 
-      ) : null,
+        ) : null,
     },
     {
       order: 5,
@@ -144,10 +159,10 @@ export default function ChatMessage({
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
 }) {
-  const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
-  const [ThumbsUpActive, setThumbsUpActive] = useState(false);
 
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
+  const traceIdRef = useRef<string | null>(null);
+
   return (
     <div className="flex items-start gap-4 pr-5 pt-5">
       <ChatAvatar role={chatMessage.role} />
@@ -156,48 +171,26 @@ export default function ChatMessage({
           message={chatMessage}
           isLoading={isLoading}
           append={append}
+          traceIdRef={traceIdRef}
         />
         <div>
-        <Button
-          onClick={() => copyToClipboard(chatMessage.content)}
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 opacity-0 group-hover:opacity-100"
-        >
-          {isCopied ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </Button>
-        {
-          chatMessage.role !== "user" && (
-            <>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                onClick={() => {
-                  setThumbsUpActive(!ThumbsUpActive);
-                  setThumbsDownActive(false);
-                }}
-              >
-                <ThumbsUp fill={ThumbsUpActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                onClick={() => {
-                  setThumbsDownActive(!ThumbsDowmActive);
-                  setThumbsUpActive(false);
-                }}
-              >
-                <ThumbsDown fill={ThumbsDowmActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
-              </Button>
-            </>
-          )
-        }
+          <Button
+            onClick={() => copyToClipboard(chatMessage.content)}
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+          >
+            {isCopied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+          {
+            chatMessage.role !== "user" && traceIdRef.current && (
+              <UserFeedbackComponent traceId={traceIdRef.current} />
+            )
+          }
         </div>
       </div>
     </div>
