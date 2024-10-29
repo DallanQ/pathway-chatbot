@@ -13,6 +13,7 @@ export enum MessageAnnotationType {
   EVENTS = "events",
   TOOLS = "tools",
   SUGGESTED_QUESTIONS = "suggested_questions",
+  LANGFUSE_TRACE_ID = 'langfuse_trace_id',
 }
 
 export type ImageData = {
@@ -86,6 +87,13 @@ export type MessageAnnotation = {
 };
 
 const NODE_SCORE_THRESHOLD = 0.25;
+
+export function getLangfuseTraceId(
+  annotations: MessageAnnotation[],
+  type: MessageAnnotationType
+): any {
+  return annotations.find((annotation) => annotation.type === type);
+}
 
 export function getAnnotationData<T extends AnnotationData>(
   annotations: MessageAnnotation[],
