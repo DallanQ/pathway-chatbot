@@ -9,13 +9,14 @@ export function UserFeedbackComponent(props: { traceId: string }) {
         publicKey: process.env.NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY,
     });
 
-    const handleUserFeedback = async (value: number) => {
+    const handleUserFeedback = async (value: string) => {
 
         console.log("traceId: ", props.traceId);
 
         await langfuseWeb.score({
             traceId: props.traceId,
             name: "user_feedback",
+            dataType:"CATEGORICAL",
             value,
         })
     };
@@ -31,7 +32,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsUpActive(!ThumbsUpActive);
                     setThumbsDownActive(false);
-                    handleUserFeedback(1);
+                    handleUserFeedback("Good");
                 }}
             >
                 <ThumbsUp fill={ThumbsUpActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
@@ -43,7 +44,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsDownActive(!ThumbsDowmActive);
                     setThumbsUpActive(false);
-                    handleUserFeedback(0);
+                    handleUserFeedback("Bad");
                 }}
             >
                 <ThumbsDown fill={ThumbsDowmActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
