@@ -21,6 +21,12 @@ en_core_web_sm ="^3.7.1"
 python-frontmatter = "^1.1.0"
 voyageai = "^0.2.3"
 scipy = "^1.14.1"
+langfuse = "^2.52.1"
+arize-phoenix = "^5.5.2"
+llama-index-core = ">=0.10.58"
+openinference-instrumentation-llama-index = ">=2"
+opentelemetry-proto = ">=1.12.0"
+arize-phoenix-otel = "^0.6.1"
 
 [tool.poetry.dependencies.uvicorn]
 extras = [ "standard" ]

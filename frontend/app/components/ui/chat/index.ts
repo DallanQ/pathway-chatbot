@@ -84,6 +84,7 @@ export type AnnotationData =
 export type MessageAnnotation = {
   type: MessageAnnotationType;
   data: AnnotationData;
+  trace_id?: string;
 };
 
 const NODE_SCORE_THRESHOLD = 0.25;

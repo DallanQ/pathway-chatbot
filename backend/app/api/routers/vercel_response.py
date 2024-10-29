@@ -62,7 +62,6 @@ class VercelStreamResponse(StreamingResponse):
                 time.sleep(0.02)
                 yield VercelStreamResponse.convert_text(token)
 
-            print('trace_id: ', trace_id)
             
             # Generate questions that user might interested to
             conversation = chat_data.messages + [
@@ -77,12 +76,7 @@ class VercelStreamResponse(StreamingResponse):
                     {
                         "type": "suggested_questions",
                         "data": questions,
-                    }
-                )
-                yield VercelStreamResponse.convert_data(
-                    {
-                        "type": "langfuse_trace_id",
-                        "data": trace_id
+                        "trace_id": trace_id
                     }
                 )
 
@@ -99,6 +93,7 @@ class VercelStreamResponse(StreamingResponse):
                             for node in response.source_nodes
                         ]
                     },
+                    "trace_id": trace_id,
                 }
             )
 
@@ -107,11 +102,13 @@ class VercelStreamResponse(StreamingResponse):
             async for event in event_handler.async_event_gen():
                 event_response = event.to_response()
                 if event_response is not None:
+                    event_response["trace_id"] = trace_id
                     yield VercelStreamResponse.convert_data(event_response)
 
         combine = stream.merge(_chat_response_generator(), _event_generator())
         is_stream_started = False
         async with combine.stream() as streamer:
+            print("streamer", dir(streamer))
             async for output in streamer:
                 if not is_stream_started:
                     is_stream_started = True
