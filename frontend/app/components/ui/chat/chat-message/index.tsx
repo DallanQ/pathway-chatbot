@@ -1,7 +1,7 @@
-import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 
 import { Message } from "ai";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import {
@@ -24,6 +24,7 @@ import { ChatSources } from "./chat-sources";
 import { SuggestedQuestions } from "./chat-suggestedQuestions";
 import ChatTools from "./chat-tools";
 import Markdown from "./markdown";
+import { UserFeedbackComponent } from "./UserFeedbackComponent";
 
 type ContentDisplayConfig = {
   order: number;
@@ -144,10 +145,12 @@ export default function ChatMessage({
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
 }) {
-  const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
-  const [ThumbsUpActive, setThumbsUpActive] = useState(false);
 
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
+  // look for an annotation with the trace_id
+  const traceId = (chatMessage.annotations?.find(
+    (annotation) => (annotation as MessageAnnotation)?.trace_id) as MessageAnnotation)?.trace_id || "";
+    
   return (
     <div className="flex items-start gap-4 pr-5 pt-5">
       <ChatAvatar role={chatMessage.role} />
@@ -172,30 +175,7 @@ export default function ChatMessage({
         </Button>
         {
           chatMessage.role !== "user" && (
-            <>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                onClick={() => {
-                  setThumbsUpActive(!ThumbsUpActive);
-                  setThumbsDownActive(false);
-                }}
-              >
-                <ThumbsUp fill={ThumbsUpActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                onClick={() => {
-                  setThumbsDownActive(!ThumbsDowmActive);
-                  setThumbsUpActive(false);
-                }}
-              >
-                <ThumbsDown fill={ThumbsDowmActive ? "#111": "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
-              </Button>
-            </>
+            <UserFeedbackComponent traceId={traceId}/>
           )
         }
         </div>
