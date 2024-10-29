@@ -21,6 +21,7 @@ en_core_web_sm ="^3.7.1"
 python-frontmatter = "^1.1.0"
 voyageai = "^0.2.3"
 scipy = "^1.14.1"
+langfuse = "^2.53.1"
 
 [tool.poetry.dependencies.uvicorn]
 extras = [ "standard" ]
