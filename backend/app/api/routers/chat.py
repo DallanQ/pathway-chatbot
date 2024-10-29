@@ -68,8 +68,11 @@ async def chat(
             output=response.response,
             metadata=retrieved
         )
-
-        return VercelStreamResponse(request, event_handler, response, data, tokens)
+        
+        trace_id = langfuse_context.get_current_trace_id()
+        
+        return VercelStreamResponse(request, event_handler, response, data, tokens, trace_id=trace_id)
+        # return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:
         logger.exception("Error in chat engine", exc_info=True)
         raise HTTPException(
