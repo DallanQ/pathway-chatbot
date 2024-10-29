@@ -37,9 +37,10 @@ class VercelStreamResponse(StreamingResponse):
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
         tokens: list,
+        trace_id: str | None = None
     ):
         content = VercelStreamResponse.content_generator(
-            request, event_handler, response, chat_data, tokens
+            request, event_handler, response, chat_data, tokens, trace_id
         )
         super().__init__(content=content)
 
@@ -51,6 +52,7 @@ class VercelStreamResponse(StreamingResponse):
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
         tokens: list,
+        trace_id: str | None = None
     ):
         # Yield the text response
         async def _chat_response_generator():
@@ -60,9 +62,12 @@ class VercelStreamResponse(StreamingResponse):
                 time.sleep(0.02)
                 yield VercelStreamResponse.convert_text(token)
 
+            print('trace_id: ', trace_id)
+            
             # Generate questions that user might interested to
             conversation = chat_data.messages + [
-                Message(role="assistant", content=final_response)
+                Message(role="assistant", content=final_response, trace_id=trace_id)
+                # Message(role="assistant", content=final_response)
             ]
             questions = await NextQuestionSuggestion.suggest_next_questions(
                 conversation
@@ -72,6 +77,12 @@ class VercelStreamResponse(StreamingResponse):
                     {
                         "type": "suggested_questions",
                         "data": questions,
+                    }
+                )
+                yield VercelStreamResponse.convert_data(
+                    {
+                        "type": "langfuse_trace_id",
+                        "data": trace_id
                     }
                 )
 
