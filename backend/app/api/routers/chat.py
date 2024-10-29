@@ -16,7 +16,6 @@ from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
 from langfuse.decorators import langfuse_context, observe
-from langfuse.openai import openai
 
 chat_router = r = APIRouter()
 
@@ -119,14 +118,6 @@ async def chat_request(
         result=Message(role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id),
         nodes=SourceNodes.from_source_nodes(response.source_nodes),
     )
-    
-@r.post('/thumbs_up')
-async def thumbs_up():
-    return {"message": "Thumbs up!"} 
-
-@r.post('/thumbs_down')
-async def thumbs_down():
-    return {"message": "Thumbs down!"}
 
 def split_header_content(text: str) -> Tuple[str, str]:
     lines = text.split('\n', 1)
