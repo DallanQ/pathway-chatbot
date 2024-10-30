@@ -1,24 +1,37 @@
-import { LangfuseWeb } from "langfuse";
+import Langfuse from "langfuse";
 import { Button } from "../../button";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 
 export function UserFeedbackComponent(props: { traceId: string }) {
-
-    const langfuseWeb = new LangfuseWeb({
+    const langfuse = new Langfuse({
         publicKey: process.env.NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY,
+        secretKey: process.env.NEXT_PUBLIC_LANGFUSE_PRIVATE_KEY,
+        baseUrl: process.env.NEXT_PUBLIC_LANGFUSE_API_URL
     });
 
     const handleUserFeedback = async (value: string) => {
+        // Fetch the trace
+        const trace = await langfuse.fetchTrace(props.traceId);
 
-        console.log("traceId: ", props.traceId);
+        if (trace.data?.scores?.length) {
+            const scoreId = trace.data?.scores[0].id;
+            await langfuse.score({
+                traceId: props.traceId,
+                id: scoreId,
+                name: "user_feedback",
+                value: value
+            });
+        }
+        else {
+            await langfuse.score({
+                traceId: props.traceId,
+                name: "user_feedback",
+                dataType: "CATEGORICAL",
+                value,
+            })
 
-        await langfuseWeb.score({
-            traceId: props.traceId,
-            name: "user_feedback",
-            dataType:"CATEGORICAL",
-            value,
-        })
+        }
     };
     const [ThumbsUpActive, setThumbsUpActive] = useState(false);
     const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
@@ -32,7 +45,8 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsUpActive(!ThumbsUpActive);
                     setThumbsDownActive(false);
-                    handleUserFeedback("Good");
+                    if (!ThumbsUpActive)
+                        handleUserFeedback("Good");
                 }}
             >
                 <ThumbsUp fill={ThumbsUpActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
@@ -44,7 +58,8 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsDownActive(!ThumbsDowmActive);
                     setThumbsUpActive(false);
-                    handleUserFeedback("Bad");
+                    if (!ThumbsDowmActive)
+                        handleUserFeedback("Bad");
                 }}
             >
                 <ThumbsDown fill={ThumbsDowmActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
