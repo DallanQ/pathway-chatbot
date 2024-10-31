@@ -1,6 +1,9 @@
 import logging
 from typing import Tuple, List, Dict, Any
 from collections import defaultdict
+import traceback
+import sys
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from llama_index.core.chat_engine.types import BaseChatEngine, NodeWithScore
 from llama_index.core.llms import MessageRole
@@ -20,6 +23,18 @@ from langfuse.decorators import langfuse_context, observe
 chat_router = r = APIRouter()
 
 logger = logging.getLogger("uvicorn")
+
+
+def _log_exception_trace():
+    """
+    Log the full exception traceback when an exception occurs.
+    Should be called within an except block.
+    """
+    exc_info = sys.exc_info()
+    if exc_info[0] is not None:  # If there's an active exception
+        exc_trace = ''.join(traceback.format_exception(*exc_info))
+        logger.error(f"Exception traceback:\n{exc_trace}")
+
 
 # streaming endpoint - delete if not needed
 @r.post("")
@@ -69,11 +84,13 @@ async def chat(
         )
         
         trace_id = langfuse_context.get_current_trace_id()
+        logger.info(f"We got the trace id to be : {trace_id}")
         
         return VercelStreamResponse(request, event_handler, response, data, tokens, trace_id=trace_id)
         # return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:
         logger.exception("Error in chat engine", exc_info=True)
+        _log_exception_trace()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error in chat engine: {e}",
@@ -85,39 +102,58 @@ async def chat(
 @observe()
 async def chat_request(
     data: ChatData,
-    chat_engine: BaseChatEngine = Depends(get_chat_engine),
 ) -> Result:
-    last_message_content = data.get_last_message_content()
-    # Delete the chat_history of the engine and 
-    data.clear_chat_messages()
-    messages = data.get_history_messages()
+    try:
+        last_message_content = data.get_last_message_content()
+        # Delete the chat_history of the engine and
+        data.clear_chat_messages()
+        messages = data.get_history_messages()
 
-    response = await chat_engine.achat(last_message_content, messages)
-    
-    retrieved = "\n\n".join(
-        [
-            f"node_id: {idx+1}\n{node.metadata['url']}\n{node.text}"
-            for idx, node in enumerate(response.source_nodes)
-        ]
-    )
-    
-    # Set the input, output and metadata of Langfuse
-    langfuse_context.update_current_trace(
-        input=last_message_content,
-        output=response.response,
-        metadata={"nodes": retrieved}
-    )
-    
-    # Get the trace_id of Langfuse
-    trace_id = langfuse_context.get_current_trace_id()
+        doc_ids = data.get_chat_document_ids()
+        filters = generate_filters(doc_ids)
+        params = data.data or {}
+        logger.info(
+            f"Creating chat engine with filters: {str(filters)}",
+        )
+        chat_engine = get_chat_engine(filters=filters, params=params)
+        # Delete the chat_history from the chat_engine
+        chat_engine.reset()
 
-    # Delete the chat_history from the chat_engine
-    chat_engine.reset()
-    
-    return Result(
-        result=Message(role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id),
-        nodes=SourceNodes.from_source_nodes(response.source_nodes),
-    )
+        response = await chat_engine.achat(last_message_content, messages)
+
+        retrieved = "\n\n".join(
+            [
+                f"node_id: {idx+1}\n{node.metadata['url']}\n{node.text}"
+                for idx, node in enumerate(response.source_nodes)
+            ]
+        )
+
+        # Set the input, output and metadata of Langfuse
+        langfuse_context.update_current_trace(
+            input=last_message_content,
+            output=response.response,
+            metadata={"nodes": retrieved}
+        )
+
+        # Get the trace_id of Langfuse
+        trace_id = langfuse_context.get_current_trace_id()
+        logger.info(f"We got the trace id to be : {trace_id}")
+
+        # Delete the chat_history from the chat_engine
+        chat_engine.reset()
+
+        return Result(
+            result=Message(role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id),
+            nodes=SourceNodes.from_source_nodes(response.source_nodes),
+        )
+    except Exception as e:
+        logger.exception("Error in chat_request", exc_info=True)
+        _log_exception_trace()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error in chat engine: {e}",
+        ) from e
+
 
 def split_header_content(text: str) -> Tuple[str, str]:
     lines = text.split('\n', 1)

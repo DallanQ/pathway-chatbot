@@ -49,8 +49,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsUpActive(!ThumbsUpActive);
                     setThumbsDownActive(false);
-                    if (!ThumbsUpActive)
-                        handleUserFeedback("Good");
+                    handleUserFeedback(!ThumbsUpActive ? "Good" : "");
                 }}
             >
                 <ThumbsUp fill={ThumbsUpActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsUpActive ? 0 : 2} />
@@ -62,8 +61,7 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 onClick={() => {
                     setThumbsDownActive(!ThumbsDowmActive);
                     setThumbsUpActive(false);
-                    if (!ThumbsDowmActive)
-                        handleUserFeedback("Bad");
+                    handleUserFeedback(!ThumbsDowmActive ? "Bad" : "");
                 }}
             >
                 <ThumbsDown fill={ThumbsDowmActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
