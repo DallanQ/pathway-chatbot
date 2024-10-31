@@ -4,6 +4,10 @@ import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 
 export function UserFeedbackComponent(props: { traceId: string }) {
+    console.log("Public Key:", process.env.NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY);
+    console.log("Private Key:", process.env.NEXT_PUBLIC_LANGFUSE_PRIVATE_KEY);
+    console.log("API URL:", process.env.NEXT_PUBLIC_LANGFUSE_API_URL);
+
     const langfuse = new Langfuse({
         publicKey: process.env.NEXT_PUBLIC_LANGFUSE_PUBLIC_KEY,
         secretKey: process.env.NEXT_PUBLIC_LANGFUSE_PRIVATE_KEY,
