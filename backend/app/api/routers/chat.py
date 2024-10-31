@@ -69,7 +69,7 @@ async def chat(
         )
         
         trace_id = langfuse_context.get_current_trace_id()
-        logger.info(f"We got the trace id to be : {trace_id)}")
+        logger.info(f"We got the trace id to be : {trace_id}")
         
         return VercelStreamResponse(request, event_handler, response, data, tokens, trace_id=trace_id)
         # return VercelStreamResponse(request, event_handler, response, data, tokens)
@@ -111,7 +111,7 @@ async def chat_request(
     
     # Get the trace_id of Langfuse
     trace_id = langfuse_context.get_current_trace_id()
-    logger.info(f"We got the trace id to be : {trace_id)}")
+    logger.info(f"We got the trace id to be : {trace_id}")
 
     # Delete the chat_history from the chat_engine
     chat_engine.reset()
