@@ -149,7 +149,7 @@ class ChatData(BaseModel):
                             if fi.content.type == "ref":
                                 document_ids += fi.content.value
         return list(set(document_ids))
-    
+
     def clear_chat_messages(self):
         self.messages = []
         return self
@@ -168,7 +168,7 @@ class SourceNodes(BaseModel):
         metadata = source_node.node.metadata
         url = cls.get_url_from_metadata(metadata)
         logger.info(f"Metadata{metadata}")
-        
+
         return cls(
             id=source_node.node.node_id,
             citation_node_id=source_node.citation_node_id,
@@ -234,3 +234,8 @@ class ChatConfig(BaseModel):
                 ]
             }
         }
+
+
+class ThumbsRequest(BaseModel):
+    trace_id: str
+    value: str

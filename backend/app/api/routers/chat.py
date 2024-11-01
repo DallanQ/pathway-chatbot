@@ -14,11 +14,13 @@ from app.api.routers.models import (
     Message,
     Result,
     SourceNodes,
+    ThumbsRequest,
 )
 from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
 from langfuse.decorators import langfuse_context, observe
+from app.langfuse import langfuse
 
 chat_router = r = APIRouter()
 
@@ -32,7 +34,7 @@ def _log_exception_trace():
     """
     exc_info = sys.exc_info()
     if exc_info[0] is not None:  # If there's an active exception
-        exc_trace = ''.join(traceback.format_exception(*exc_info))
+        exc_trace = "".join(traceback.format_exception(*exc_info))
         logger.error(f"Exception traceback:\n{exc_trace}")
 
 
@@ -46,10 +48,10 @@ async def chat(
 ):
     try:
         last_message_content = data.get_last_message_content()
-        # Delete the chat_history of the engine and 
+        # Delete the chat_history of the engine and
         data.clear_chat_messages()
         messages = data.get_history_messages()
-        
+
         doc_ids = data.get_chat_document_ids()
         filters = generate_filters(doc_ids)
         params = data.data or {}
@@ -76,17 +78,17 @@ async def chat(
         tokens = []
         async for token in response.async_response_gen():
             tokens.append(token)
-            
+
         langfuse_context.update_current_trace(
-            input=last_message_content,
-            output=response.response,
-            metadata=retrieved
+            input=last_message_content, output=response.response, metadata=retrieved
         )
-        
+
         trace_id = langfuse_context.get_current_trace_id()
         logger.info(f"We got the trace id to be : {trace_id}")
-        
-        return VercelStreamResponse(request, event_handler, response, data, tokens, trace_id=trace_id)
+
+        return VercelStreamResponse(
+            request, event_handler, response, data, tokens, trace_id=trace_id
+        )
         # return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:
         logger.exception("Error in chat engine", exc_info=True)
@@ -132,7 +134,7 @@ async def chat_request(
         langfuse_context.update_current_trace(
             input=last_message_content,
             output=response.response,
-            metadata={"nodes": retrieved}
+            metadata={"nodes": retrieved},
         )
 
         # Get the trace_id of Langfuse
@@ -143,7 +145,9 @@ async def chat_request(
         chat_engine.reset()
 
         return Result(
-            result=Message(role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id),
+            result=Message(
+                role=MessageRole.ASSISTANT, content=response.response, trace_id=trace_id
+            ),
             nodes=SourceNodes.from_source_nodes(response.source_nodes),
         )
     except Exception as e:
@@ -155,30 +159,58 @@ async def chat_request(
         ) from e
 
 
+@r.post("/thumbs_request")
+async def thumbs_request(request: ThumbsRequest):
+    trace_id = request.trace_id
+    value = request.value
+
+    trace = langfuse.fetch_trace(id=trace_id)
+
+    if len(trace.data.scores) > 0:
+        score_id = trace.data.scores[0].id
+        langfuse.score(
+            trace_id=trace_id,
+            id=score_id,
+            name="user_feedback",
+            value=value,
+        )
+    else:
+        langfuse.score(
+            trace_id=trace_id,
+            name="user_feedback",
+            data_type="CATEGORICAL",
+            value=value,
+        )
+
+    return {"feedback": value}
+
+
 def split_header_content(text: str) -> Tuple[str, str]:
-    lines = text.split('\n', 1)
+    lines = text.split("\n", 1)
     if len(lines) > 1:
-        return lines[0] + '\n', lines[1]
-    return '', text
+        return lines[0] + "\n", lines[1]
+    return "", text
+
 
 def organize_nodes(nodes: List[Dict[str, Any]]) -> Dict[str, List[str]]:
     # Step 1: Group nodes by page (URL)
     pages = defaultdict(list)
     for node in nodes:
-        url = node.metadata['url']
+        url = node.metadata["url"]
         pages[url].append(node)
-    
+
     # Step 2: Order nodes on each page by sequence number
     for url, page_nodes in pages.items():
-        pages[url] = sorted(page_nodes, key=lambda x: x.metadata['sequence'])
-    
+        pages[url] = sorted(page_nodes, key=lambda x: x.metadata["sequence"])
+
     # Step 3: Merge overlapping nodes
     organized_pages = {}
     for url, page_nodes in pages.items():
         merged_nodes = merge_nodes_with_headers(page_nodes)
         organized_pages[url] = merged_nodes
-    
+
     return organized_pages
+
 
 def merge_nodes_with_headers(nodes: List[Dict[str, Any]]) -> List[str]:
     merged_results = []
@@ -202,25 +234,28 @@ def merge_nodes_with_headers(nodes: List[Dict[str, Any]]) -> List[str]:
 
     return merged_results
 
+
 def split_header_content(text: str) -> Tuple[str, str]:
-    lines = text.split('\n', 1)
+    lines = text.split("\n", 1)
     if len(lines) > 1:
-        return lines[0] + '\n', lines[1]
-    return '', text
+        return lines[0] + "\n", lines[1]
+    return "", text
+
 
 def merge_content(existing: str, new: str) -> str:
     # This is a simple merge function. You might need to implement
     # a more sophisticated merging logic based on your specific requirements.
-    combined = existing + ' ' + new
+    combined = existing + " " + new
     words = combined.split()
-    return ' '.join(sorted(set(words), key=words.index))
+    return " ".join(sorted(set(words), key=words.index))
+
 
 def process_response_nodes(
     nodes: List[NodeWithScore],
     background_tasks: BackgroundTasks,
-): 
+):
     # organize_nodes(nodes)
-    
+
     try:
         # Start background tasks to download documents from LlamaCloud if needed
         from app.engine.service import LLamaCloudFileService
@@ -229,4 +264,3 @@ def process_response_nodes(
     except ImportError:
         logger.debug("LlamaCloud is not configured. Skipping post processing of nodes")
         pass
-        
