@@ -1,13 +1,10 @@
-import { useClientConfig } from "../hooks/use-config";
-
 export enum FeedbackValue {
     EMPTY = '',
     GOOD = 'Good',
     BAD = 'Bad',
 }
 
-export const sendUserFeedback = async (traceId: string, value: FeedbackValue) => {
-    const { backend } = useClientConfig();
+export const useSendUserFeedback = async (backend: string, traceId: string, value: FeedbackValue) => {
     const uploadAPI = `${backend}/api/chat/thumbs_request`;
     try {
         const body = {

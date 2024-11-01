@@ -1,11 +1,14 @@
 import { Button } from "../../button";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
-import { FeedbackValue, sendUserFeedback } from "./thumb_request";
+import { FeedbackValue, useSendUserFeedback } from "./thumb_request";
+import { useClientConfig } from "../hooks/use-config";
 
 export function UserFeedbackComponent(props: { traceId: string }) {
+    const { backend = "" } = useClientConfig();
+
     const handleUserFeedback = async (traceId: string, value: FeedbackValue) => {
-        await sendUserFeedback(traceId, value);
+        await useSendUserFeedback(backend, traceId, value);
     };
 
     const [ThumbsUpActive, setThumbsUpActive] = useState(false);
