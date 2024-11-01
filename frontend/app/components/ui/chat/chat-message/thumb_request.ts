@@ -4,7 +4,7 @@ export enum FeedbackValue {
     BAD = 'Bad',
 }
 
-export const useSendUserFeedback = async (backend: string, traceId: string, value: FeedbackValue) => {
+export const sendUserFeedback = async (backend: string, traceId: string, value: FeedbackValue) => {
     const uploadAPI = `${backend}/api/chat/thumbs_request`;
     try {
         const body = {
@@ -29,4 +29,4 @@ export const useSendUserFeedback = async (backend: string, traceId: string, valu
     } catch (error) {
         console.error("Error sending feedback:", error);
     }
-}
+};

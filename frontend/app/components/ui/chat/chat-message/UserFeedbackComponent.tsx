@@ -1,18 +1,18 @@
 import { Button } from "../../button";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
-import { FeedbackValue, useSendUserFeedback } from "./thumb_request";
+import { FeedbackValue, sendUserFeedback } from "./thumb_request";
 import { useClientConfig } from "../hooks/use-config";
 
 export function UserFeedbackComponent(props: { traceId: string }) {
     const { backend = "" } = useClientConfig();
 
     const handleUserFeedback = async (traceId: string, value: FeedbackValue) => {
-        await useSendUserFeedback(backend, traceId, value);
+        await sendUserFeedback(backend, traceId, value);
     };
 
     const [ThumbsUpActive, setThumbsUpActive] = useState(false);
-    const [ThumbsDowmActive, setThumbsDownActive] = useState(false);
+    const [ThumbsDownActive, setThumbsDownActive] = useState(false);
 
     return (
         <>
@@ -33,12 +33,12 @@ export function UserFeedbackComponent(props: { traceId: string }) {
                 variant="ghost"
                 className="h-8 w-8 opacity-0 group-hover:opacity-100"
                 onClick={() => {
-                    setThumbsDownActive(!ThumbsDowmActive);
+                    setThumbsDownActive(!ThumbsDownActive);
                     setThumbsUpActive(false);
-                    handleUserFeedback(props.traceId, !ThumbsUpActive ? FeedbackValue.BAD : FeedbackValue.EMPTY);
+                    handleUserFeedback(props.traceId, !ThumbsDownActive ? FeedbackValue.BAD : FeedbackValue.EMPTY);
                 }}
             >
-                <ThumbsDown fill={ThumbsDowmActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDowmActive ? 0 : 2} />
+                <ThumbsDown fill={ThumbsDownActive ? "#111" : "none"} className="h-4 w-4" strokeWidth={ThumbsDownActive ? 0 : 2} />
             </Button>
         </>
     );
