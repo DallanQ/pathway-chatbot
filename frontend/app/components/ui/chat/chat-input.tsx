@@ -62,19 +62,19 @@ export default function ChatInput(
     props.handleSubmit(e);
   };
 
-  const handleUploadFile = async (file: File) => {
-    if (imageUrl || files.length > 0) {
-      alert("You can only upload one file at a time.");
-      return;
-    }
-    try {
-      await uploadFile(file, props.requestParams);
-      props.onFileUpload?.(file);
-    } catch (error: any) {
-      const onFileUploadError = props.onFileError || window.alert;
-      onFileUploadError(error.message);
-    }
-  };
+  // const handleUploadFile = async (file: File) => {
+  //   if (imageUrl || files.length > 0) {
+  //     alert("You can only upload one file at a time.");
+  //     return;
+  //   }
+  //   try {
+  //     await uploadFile(file, props.requestParams);
+  //     props.onFileUpload?.(file);
+  //   } catch (error: any) {
+  //     const onFileUploadError = props.onFileError || window.alert;
+  //     onFileUploadError(error.message);
+  //   }
+  // };
 
   return (
     <form
@@ -104,14 +104,14 @@ export default function ChatInput(
           value={props.input}
           onChange={props.handleInputChange}
         />
-        <FileUploader
+        {/* <FileUploader
           onFileUpload={handleUploadFile}
           onFileError={props.onFileError}
           config={{
             allowedExtensions: ALLOWED_EXTENSIONS,
             disabled: props.isLoading,
           }}
-        />
+        /> */}
         {process.env.NEXT_PUBLIC_USE_LLAMACLOUD === "true" &&
           props.setRequestData && (
             <LlamaCloudSelector setRequestData={props.setRequestData} />
