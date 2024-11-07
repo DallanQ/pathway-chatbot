@@ -11,7 +11,7 @@ export default function Header() {
         <p
           className="flex items-center justify-center font-nunito text-lg font-bold gap-2"
         >
-          <span>Built by BYU-Pathway Work-Study Program</span>
+          <span>Built and Maintained by BYU-Pathway Students</span>
           {/* <Image
             className="rounded-xl"
             src="/llama.png"
