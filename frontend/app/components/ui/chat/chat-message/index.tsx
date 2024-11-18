@@ -160,7 +160,7 @@ export default function ChatMessage({
           isLoading={isLoading}
           append={append}
         />
-        <div>
+        <div className="max-w-[10px] md:max-w-none">
         <Button
           onClick={() => copyToClipboard(chatMessage.content)}
           size="icon"
