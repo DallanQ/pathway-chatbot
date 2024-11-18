@@ -46,21 +46,26 @@ export function ChatSources({ data }: { data: SourceData }) {
       return getNumber(a.citation_node_id) - getNumber(b.citation_node_id);
   });
 
-
-    return (
-      <div className="space-y-2 text-sm">
-        <div className="font-semibold text-lg">Sources:</div>
-        <ul style={{ listStyleType: "disc", marginLeft: "20px" }}>
-          {sortedSources.map((node: SourceNode, index: number) => (
-            <li key={index}>
-              <a href={node.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                {node.citation_node_id}. {node.url}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
+  return (
+    <div className="space-y-2 text-sm">
+      <div className="font-semibold text-lg">Sources:</div>
+      <ul style={{ listStyleType: "disc", marginLeft: "10px" }} >
+        {sortedSources.map((node: SourceNode, index: number) => (
+          <li key={index} className="mb-2 md:mb-1">
+            <a
+              href={node.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline break-all"
+            >
+              {node.citation_node_id}. {node.url}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  
 }
 
 export function SourceInfo({
