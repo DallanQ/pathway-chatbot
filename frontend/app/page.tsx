@@ -6,7 +6,7 @@ export default function Home() {
     <main className="h-dvh w-screen flex justify-center items-center background-gradient">
       <div className="space-y-2 lg:space-y-10 w-[90%] lg:w-[60rem]">
         <Header />
-        <div className="h-[65dvh] flex mb-20 md:mb-0">
+        <div className="h-[65dvh] flex pb-6 md:pb-0">
           <ChatSection />
         </div>
       </div>
