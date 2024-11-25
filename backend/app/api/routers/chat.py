@@ -163,24 +163,15 @@ async def chat_request(
 async def thumbs_request(request: ThumbsRequest):
     trace_id = request.trace_id
     value = request.value
+    score_id = f'{trace_id}_feedback'
 
-    trace = langfuse.fetch_trace(id=trace_id)
-
-    if len(trace.data.scores) > 0:
-        score_id = trace.data.scores[0].id
-        langfuse.score(
-            trace_id=trace_id,
-            id=score_id,
-            name="user_feedback",
-            value=value,
-        )
-    else:
-        langfuse.score(
-            trace_id=trace_id,
-            name="user_feedback",
-            data_type="CATEGORICAL",
-            value=value,
-        )
+    langfuse.score(
+        id=score_id,
+        trace_id=trace_id,
+        name="user_feedback",
+        data_type="CATEGORICAL",
+        value=value,
+    )
 
     return {"feedback": value}
 
