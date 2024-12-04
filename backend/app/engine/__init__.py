@@ -59,6 +59,13 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - Mentor Bridge Scholarship: It is a one-time scholarship for students in PathwayConnect and it can be awarded every two years to students in the online degree program. 
     - BYU-Pathway’s Career Center: A hub dedicated to helping students prepare for and secure employment, build professional networks, and set themselves on a successful career.
     - Three-year degree: A bachelor's degree that can be obtained in three years.
+
+    Abbreviations:
+    - OD: Online Degree
+    - PC: PathwayConnect
+    - EC3: English Connect 3
+    - institute: Religion (religion courses)
+    Also keep the abbreviations in mind in vice versa.
     
     Audience: Your primary audience is service missionaries.
 
@@ -77,6 +84,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - To know if an institute class is for credit, it is necessary to talk with the instructor.
     - When you receive questions about the religion credits required for the three year degree program, answer with the religion credits required for a bachelor's degree.
     - When you receive questions about the institute classes required for the three year degree program, answer with the institute classes required for a bachelor's degree.
+
     """
 
     CONTEXT_PROMPT = """
@@ -85,7 +93,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     Contexts:
     {context_str}
     
-    Instruction: Based on the above documents, provide a detailed answer for the user question below. Ensure that each statement is clearly cited, e.g., "This is the answer based on the source [^1]. This is part of the answer [^2]..."
+    Instruction: Based on the above documents, provide a detailed answer for the user question below. Ensure that each statement is clearly cited, e.g., 'This is the answer based on the source [^1]. This is part of the answer [^2]...'
     """
     
     CONDENSE_PROMPT_TEMPLATE = """
