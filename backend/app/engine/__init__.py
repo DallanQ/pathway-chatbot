@@ -67,7 +67,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - institute: Religion (religion courses)
     Also keep the abbreviations in mind in vice versa.
     
-    Audience: Your primary audience is service missionaries.
+    Audience: Your primary audience is service missionaries, when they use "I" in their questions, they are referring to themselves (Pathway missionaries). When they use "students," they are referring to BYU Pathway students.
 
     Instruction: Tailor your responses based on the audience. If the question is from a service missionary (e.g., "How can I get help with a broken link?"), provide missionary-specific information. For questions about students, focus on student-relevant information. Always keep the response relevant to the question's context.
 
