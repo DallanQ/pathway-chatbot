@@ -31,10 +31,14 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
     def _retrieve_context(self, message: str) -> Tuple[str, List[NodeWithScore]]:
         """Build context for a message from retriever."""
         nodes = self._retriever.retrieve(message)
+        for i, node in enumerate(nodes):
+            print(f"Node {i+1}: {node.text}\n\n\n")
         for postprocessor in self._node_postprocessors:
             nodes = postprocessor.postprocess_nodes(
                 nodes, query_bundle=QueryBundle(message)
             )
+            for i, node in enumerate(nodes):
+                print(f"Node {i+1}: {node.text}\n\n\n")
         
         # print(nodes)
 
@@ -153,59 +157,58 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
         return organized_nodes
 
     def _merge_nodes_with_headers(self, nodes: List[NodeWithScore]) -> List[NodeWithScore]:
-        """Merge nodes by aligning words and removing duplicates at the same positions."""
+        """Merge nodes while preserving complete phrases and context."""
         if not nodes:
             return []
 
         # Use the metadata from the first node
         merged_node_with_score = nodes[0]
-        total_score = 0.0
-
-        # Collect lists of words from each node's text
-        texts_words = [node_with_score.node.get_text().split() for node_with_score in nodes]
-        max_length = max(len(words) for words in texts_words)
-
-        merged_words = []
-        for i in range(max_length):
-            words_at_position = []
-            scores_at_position = []
-            for idx, words in enumerate(texts_words):
-                if i < len(words):
-                    words_at_position.append(words[i])
-                    scores_at_position.append(nodes[idx].score)
+        
+        # Instead of merging word by word, let's work with complete phrases
+        all_texts = [node.node.get_text() for node in nodes]
+        
+        # Create a scoring system for each complete text
+        text_scores = []
+        for idx, text in enumerate(all_texts):
+            score = nodes[idx].score
+            text_scores.append((text, score))
+        
+        # Sort texts by score in descending order
+        text_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Initialize with the highest scored text
+        final_text = text_scores[0][0]
+        
+        # Function to check if a phrase is semantically different enough to keep
+        def is_unique_content(existing_text: str, new_text: str) -> bool:
+            existing_words = set(existing_text.lower().split())
+            new_words = set(new_text.lower().split())
+            
+            # Calculate word overlap
+            overlap = len(existing_words.intersection(new_words))
+            total_words = len(new_words)
+            
+            # If less than 70% overlap, consider it unique content
+            return (overlap / total_words) < 0.7 if total_words > 0 else False
+        
+        # Add unique content from other texts
+        for text, _ in text_scores[1:]:
+            if is_unique_content(final_text, text):
+                # Add a separator if needed
+                if not final_text.endswith('.') and not final_text.endswith('?'):
+                    final_text += '. '
                 else:
-                    words_at_position.append(None)
-                    scores_at_position.append(nodes[idx].score)
-
-            # Remove None placeholders
-            words_present = [(word, score) for word, score in zip(words_at_position, scores_at_position) if word]
-
-            # If all words at this position are the same, keep one
-            unique_words = set(word for word, _ in words_present)
-            if len(unique_words) == 1:
-                merged_words.append(words_present[0][0])
-            else:
-                # Choose the word with the highest associated score
-                word_scores = {}
-                for word, score in words_present:
-                    word_scores[word] = word_scores.get(word, 0) + score
-                # Select the word with the highest cumulative score
-                chosen_word = max(word_scores.items(), key=lambda x: x[1])[0]
-                merged_words.append(chosen_word)
-
-        merged_text = ' '.join(merged_words)
-
-        # Sum up the scores for averaging
-        for node_with_score in nodes:
-            total_score += node_with_score.score
-
-        # Calculate the average score
+                    final_text += ' '
+                final_text += text
+        
+        # Calculate average score
+        total_score = sum(node.score for node in nodes)
         average_score = total_score / len(nodes)
-
-        # Update the merged node's text and score
-        merged_node_with_score.node.text = merged_text
+        
+        # Update the merged node
+        merged_node_with_score.node.text = final_text
         merged_node_with_score.score = average_score
-
+        
         return [merged_node_with_score]
 
 
