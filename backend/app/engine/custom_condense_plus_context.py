@@ -165,41 +165,50 @@ class CustomCondensePlusContextChatEngine(CondensePlusContextChatEngine):
         merged_node_with_score = nodes[0]
         
         # Instead of merging word by word, let's work with complete phrases
-        all_texts = [node.node.get_text() for node in nodes]
+        all_texts = [node.node.get_text() for node in nodes] # get all texts
         
         # Create a scoring system for each complete text
         text_scores = []
         for idx, text in enumerate(all_texts):
             score = nodes[idx].score
-            text_scores.append((text, score))
+            sequence = nodes[idx].node.metadata.get('sequence', 0)
+            text_scores.append((text, score, sequence)) # add tuple of text and score
         
-        # Sort texts by score in descending order
-        text_scores.sort(key=lambda x: x[1], reverse=True)
+        # Sort texts by score in ascendent order
+        text_scores.sort(key=lambda x: x[2]) # sort by sequence
         
-        # Initialize with the highest scored text
+        # Initialize with the first text
         final_text = text_scores[0][0]
+
+        # Concatenate subsequent texts
+        for text, _, _ in text_scores[1:]:
+            if text.strip():  # Check if text is not empty
+                if final_text.strip():  # If final_text is not empty, add double newline
+                    final_text += '\n\n'
+                final_text += text.strip()
         
-        # Function to check if a phrase is semantically different enough to keep
-        def is_unique_content(existing_text: str, new_text: str) -> bool:
-            existing_words = set(existing_text.lower().split())
-            new_words = set(new_text.lower().split())
-            
-            # Calculate word overlap
-            overlap = len(existing_words.intersection(new_words))
-            total_words = len(new_words)
-            
-            # If less than 70% overlap, consider it unique content
-            return (overlap / total_words) < 0.7 if total_words > 0 else False
         
-        # Add unique content from other texts
-        for text, _ in text_scores[1:]:
-            if is_unique_content(final_text, text):
-                # Add a separator if needed
-                if not final_text.endswith('.') and not final_text.endswith('?'):
-                    final_text += '. '
-                else:
-                    final_text += ' '
-                final_text += text
+        # # Function to check if a phrase is semantically different enough to keep
+        # def is_unique_content(existing_text: str, new_text: str) -> bool:
+        #     existing_words = set(existing_text.lower().split())
+        #     new_words = set(new_text.lower().split())
+            
+        #     # Calculate word overlap
+        #     overlap = len(existing_words.intersection(new_words))
+        #     total_words = len(new_words)
+            
+        #     # If less than 70% overlap, consider it unique content
+        #     return (overlap / total_words) < 0.7 if total_words > 0 else False
+        
+        # # Add unique content from other texts
+        # for text, _ in text_scores[1:]:
+        #     if is_unique_content(final_text, text):
+        #         # Add a separator if needed
+        #         if not final_text.endswith('.') and not final_text.endswith('?'):
+        #             final_text += '. '
+        #         else:
+        #             final_text += ' '
+        #         final_text += text
         
         # Calculate average score
         total_score = sum(node.score for node in nodes)
