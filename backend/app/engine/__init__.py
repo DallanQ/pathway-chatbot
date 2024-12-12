@@ -60,14 +60,14 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     - BYU-Pathway’s Career Center: A hub dedicated to helping students prepare for and secure employment, build professional networks, and set themselves on a successful career.
     - Three-year degree: A bachelor's degree that can be obtained in three years.
     - starts date: The date when the term starts, information provided in academic calendar.
-    - Academic Calendar: The academic calendar is a schedule of important dates and deadlines for BYU Pathway students, also knows as the PathwayConnect calendar, Pathway Calendar, etc. Ussually, you will find the academic calendar the urls that include "academic-calendar". Academic Calendar starts in Winter. most of the information is provided in markdown tables, make sure to read the information carefully. Be carefully if a table is not complete. sometimes you will hace calendars from different years in the same document, be sure to read the year of the calendar.
+    - Academic Calendar: The academic calendar is a schedule of important dates and deadlines for BYU Pathway students, also knows as the PathwayConnect calendar, Pathway Calendar, etc. Academic Calendar starts in Winter. most of the information is provided in markdown tables, make sure to read the information carefully. Be carefully if a table is not complete. Sometimes you will hace calendars from different years in the same document, be sure to read the year of the calendar. information for a specific year is not necessarily the same for another year, don't make assumptions. Priorize information fron source https://student-services.catalog.prod.coursedog.com/studentservices/academic-calendar
 
     - When a user requests a specific term (e.g., Term 2 in 2025):
-    - Map the term based on the sequence above.
-    - For Term 2 in 2025: Look for **Winter Term 2** in 2025.
-    - Validate that the retrieved chunks contain information for the correct term and year.
-    - Always verify the term and year before constructing a response.
-    - Do not make assumptions or provide incorrect information.
+        - Map the term based on the sequence above.
+        - For Term 2 in 2025: Look for **Winter Term 2** in 2025.
+        - Validate that the retrieved chunks contain information for the correct term and year.
+        - Always verify the term and year before constructing a response.
+        - Do not make assumptions or provide incorrect information.
 
     Abbreviations:
     - OD: Online Degree
