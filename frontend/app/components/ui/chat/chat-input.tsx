@@ -99,7 +99,7 @@ export default function ChatInput(
         <Input
           autoFocus
           name="message"
-          placeholder="Type a message"
+          placeholder="Ask a question"
           className="flex-1"
           value={props.input}
           onChange={props.handleInputChange}
@@ -117,7 +117,7 @@ export default function ChatInput(
             <LlamaCloudSelector setRequestData={props.setRequestData} />
           )}
         <Button type="submit" disabled={props.isLoading || !props.input.trim()}>
-          Send message
+          Send
         </Button>
       </div>
     </form>

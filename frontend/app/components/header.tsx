@@ -5,11 +5,11 @@ export default function Header() {
         Get started by editing&nbsp;
         <code className="font-mono font-bold">app/page.tsx</code>
       </p> */}
-      <div className="fixed bottom-0 left-0 mb-4 flex h-auto w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:w-auto lg:bg-none lg:mb-0">
+      <div className="bottom-0 left-0 mb-4 h-auto w-full from-white via-white dark:from-black dark:via-black lg:static lg:w-auto bg-none lg:mb-0">
         <p
-          className="flex items-center justify-center font-nunito text-lg font-bold gap-2 p-7 md:p-0"
+          className="font-nunito text-lg font-bold gap-2 pY-7 md:p-0"
         >
-          <span>Built and Maintained by BYU-Pathway Students</span>
+          <span>Assistant</span>
           {/* <Image
             className="rounded-xl"
             src="/llama.png"
