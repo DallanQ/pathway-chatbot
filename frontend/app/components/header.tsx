@@ -7,7 +7,7 @@ export default function Header() {
       </p> */}
       <div className="bottom-0 left-0 mb-4 h-auto w-full from-white via-white dark:from-black dark:via-black lg:static lg:w-auto bg-none lg:mb-0">
         <p
-          className="font-nunito text-lg font-bold gap-2 pY-7 md:p-0"
+          className="font-nunito text-xl font-bold gap-2 pY-7 md:p-0"
         >
           <span>Assistant</span>
           {/* <Image
