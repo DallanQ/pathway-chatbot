@@ -9,7 +9,7 @@ export default function Header() {
         <p
           className="font-nunito text-xl font-bold gap-2 pY-7 md:p-0"
         >
-          <span>Assistant</span>
+          <span>Missionary Assistant</span>
           {/* <Image
             className="rounded-xl"
             src="/llama.png"
