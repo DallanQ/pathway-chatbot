@@ -1,7 +1,6 @@
 import Header from "@/app/components/header";
 import ChatSection from "./components/chat-section";
 
-
 export default function Home() {
   return (
     <main className="h-dvh w-screen flex justify-center items-center background-gradient">
