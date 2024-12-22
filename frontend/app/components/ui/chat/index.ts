@@ -122,7 +122,7 @@ export function getSourceAnnotationData(
 function preprocessSourceNodes(nodes: SourceNode[]): SourceNode[] {
   // Filter source nodes has lower score
   nodes = nodes
-    .filter((node) => (node.score ?? 1) > NODE_SCORE_THRESHOLD)
+    // .filter((node) => (node.score ?? 1) > NODE_SCORE_THRESHOLD)
     .filter((node) => isValidUrl(node.url))
     .sort((a, b) => (b.score ?? 1) - (a.score ?? 1))
     .map((node) => {
