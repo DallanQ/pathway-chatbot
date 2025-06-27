@@ -1,20 +1,29 @@
 import { ExternalLink } from "lucide-react";
 
 export default function Header() {
-
   const hints = "https://missionaries.prod.byu-pathway.psdops.com/How-to-use-the-Missionary-Assistant"
 
   return (
-    <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-      <div className="hidden md:block"></div>
-
-      <div className="bottom-0 left-0 mb-4 h-auto w-full from-white via-white dark:from-black dark:via-black flex justify-center lg:static lg:w-auto bg-none lg:mb-0 lg:pl-6">
-        <p className="font-nunito text-xl font-bold gap-2 text-center md:p-0">
-          <span className="flex gap-4 text-center">Missionary Assistant </span>
-        </p>
+    <header className="w-full bg-[#FFC328] px-3 md:px-6 shadow-none md:py-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between h-full py-2 md:py-0">
+        <div className="w-full flex flex-row items-center justify-between md:justify-between md:w-full">
+          <div className="flex items-center">
+            <img 
+              src="/pathway-horizontal-logo.png" 
+              alt="BYU Pathway Logo" 
+              className="w-[100px] h-auto md:w-[140px]"
+            />
+          </div>
+          <span className="hidden md:block font-nunito text-lg font-semibold text-[#454540] text-center flex-1">Missionary Assistant</span>
+          <a href={hints} target="_blank" className="text-[#454540] font-semibold flex items-center gap-1 text-sm md:text-base hover:text-blue-700">
+            <span className="hidden md:inline">Hints</span>
+            <ExternalLink size={18}/>
+          </a>
+        </div>
+        <div className="w-full flex justify-center mt-1 md:hidden">
+          <span className="font-nunito text-base font-semibold text-[#454540] text-center">Missionary Assistant</span>
+        </div>
       </div>
-
-      <a href={hints} target="_blank" className="text-sm flex items-center justify-self-end gap-1 text-blue-600 visited:text-purple-600">Hints <span><ExternalLink size={16}/></span></a>
-    </div>
+    </header>
   );
 }
