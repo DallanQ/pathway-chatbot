@@ -12,12 +12,6 @@ export default function Home() {
         </div>
         <div className="mt-5 pb-3 text-sm flex gap-4 justify-between items-start">
           <p>Powered by BYU-Pathway Software Development Students</p>
-          <Image 
-            src="/byu-pw-stackedgray.svg" 
-            alt="BYU Pathway Logo" 
-            width={100}
-            height={100} 
-          />
         </div>
       </div>
     </main>
