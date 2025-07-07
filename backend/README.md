@@ -2,7 +2,7 @@ This is a [LlamaIndex](https://www.llamaindex.ai/) project using [FastAPI](https
 
 ## Getting Started
 
-First, setup the environment with poetry:
+First, setup the environment with poetry: https://python-poetry.org/
 
 > **_Note:_** This step is not needed if you are using the dev-container.
 
@@ -13,15 +13,7 @@ poetry shell
 
 Then check the parameters that have been pre-configured in the `.env` file in this directory. (E.g. you might need to configure an `OPENAI_API_KEY` if you're using OpenAI as model provider).
 
-If you are using any tools or data sources, you can update their config files in the `config` folder.
-
-Second, generate the embeddings of the documents in the `./data` directory (if this folder exists - otherwise, skip this step):
-
-```
-poetry run generate
-```
-
-Third, run the development server:
+Second, run the development server:
 
 ```
 python main.py
@@ -56,40 +48,6 @@ The API allows CORS for all origins to simplify development. You can change this
 
 ```
 ENVIRONMENT=prod python main.py
-```
-
-## Using Docker
-
-1. Build an image for the FastAPI app:
-
-```
-docker build -t <your_backend_image_name> .
-```
-
-2. Generate embeddings:
-
-Parse the data and generate the vector embeddings if the `./data` folder exists - otherwise, skip this step:
-
-```
-docker run \
-  --rm \
-  -v $(pwd)/.env:/app/.env \ # Use ENV variables and configuration from your file-system
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/data:/app/data \ # Use your local folder to read the data
-  -v $(pwd)/storage:/app/storage \ # Use your file system to store the vector database
-  <your_backend_image_name> \
-  poetry run generate
-```
-
-3. Start the API:
-
-```
-docker run \
-  -v $(pwd)/.env:/app/.env \ # Use ENV variables and configuration from your file-system
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/storage:/app/storage \ # Use your file system to store gea vector database
-  -p 8000:8000 \
-  <your_backend_image_name>
 ```
 
 ## Learn More
