@@ -11,7 +11,8 @@ export default function Home() {
           <ChatSection />
         </div>
         <div className="mt-5 pb-3 text-sm flex gap-4 justify-between items-start">
-          <p>Powered by BYU-Pathway Software Development Students</p>
+          <p className="text-red-500">IMPORTANT: This website is intended for missionaries assigned to BYU-Pathway and is not for student use. We ask that you do not share or promote on social media. Encourage students to use the Companion app found in their student portal. Thank you for respecting this guideline.
+          </p>
         </div>
       </div>
     </main>
