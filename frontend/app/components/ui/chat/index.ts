@@ -13,6 +13,7 @@ export enum MessageAnnotationType {
   EVENTS = "events",
   TOOLS = "tools",
   SUGGESTED_QUESTIONS = "suggested_questions",
+  LANGFUSE_TRACE_ID = 'langfuse_trace_id',
 }
 
 export type ImageData = {
@@ -40,6 +41,7 @@ export type DocumentFileData = {
 
 export type SourceNode = {
   id: string;
+  citation_node_id: string;
   metadata: Record<string, unknown>;
   score?: number;
   text: string;
@@ -82,9 +84,17 @@ export type AnnotationData =
 export type MessageAnnotation = {
   type: MessageAnnotationType;
   data: AnnotationData;
+  trace_id?: string;
 };
 
 const NODE_SCORE_THRESHOLD = 0.25;
+
+export function getLangfuseTraceId(
+  annotations: MessageAnnotation[],
+  type: MessageAnnotationType
+): any {
+  return annotations.find((annotation) => annotation.type === type);
+}
 
 export function getAnnotationData<T extends AnnotationData>(
   annotations: MessageAnnotation[],
@@ -112,7 +122,7 @@ export function getSourceAnnotationData(
 function preprocessSourceNodes(nodes: SourceNode[]): SourceNode[] {
   // Filter source nodes has lower score
   nodes = nodes
-    .filter((node) => (node.score ?? 1) > NODE_SCORE_THRESHOLD)
+    // .filter((node) => (node.score ?? 1) > NODE_SCORE_THRESHOLD)
     .filter((node) => isValidUrl(node.url))
     .sort((a, b) => (b.score ?? 1) - (a.score ?? 1))
     .map((node) => {

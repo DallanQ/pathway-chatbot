@@ -24,6 +24,7 @@ import { ChatSources } from "./chat-sources";
 import { SuggestedQuestions } from "./chat-suggestedQuestions";
 import ChatTools from "./chat-tools";
 import Markdown from "./markdown";
+import { UserFeedbackComponent } from "./UserFeedbackComponent";
 
 type ContentDisplayConfig = {
   order: number;
@@ -41,6 +42,7 @@ function ChatMessageContent({
 }) {
   const annotations = message.annotations as MessageAnnotation[] | undefined;
   if (!annotations?.length) return <Markdown content={message.content} />;
+
 
   const imageData = getAnnotationData<ImageData>(
     annotations,
@@ -94,17 +96,31 @@ function ChatMessageContent({
     },
     {
       order: 3,
-      component: sourceData[0] ? <ChatSources data={sourceData[0]} /> : null,
+      component: sourceData[0] 
+        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
+        && !message.content.includes("Sorry, I don't know."))
+        ? <ChatSources data={sourceData[0]} />
+        : null,
     },
     {
       order: 4,
-      component: suggestedQuestionsData[0] ? (
+      component: suggestedQuestionsData[0] 
+      && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
+      && !message.content.includes("Sorry, I don't know."))
+      ? (
         <SuggestedQuestions
           questions={suggestedQuestionsData[0]}
           append={append}
         />
+
       ) : null,
     },
+    {
+      order: 5,
+      component: sourceData[0] ? <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:underline">Site Index</a></p> : null,
+    }
   ];
 
   return (
@@ -114,6 +130,8 @@ function ChatMessageContent({
         .map((content, index) => (
           <Fragment key={index}>{content.component}</Fragment>
         ))}
+      <div>
+      </div>
     </div>
   );
 }
@@ -127,7 +145,12 @@ export default function ChatMessage({
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
 }) {
+
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
+  // look for an annotation with the trace_id
+  const traceId = (chatMessage.annotations?.find(
+    (annotation) => (annotation as MessageAnnotation)?.trace_id) as MessageAnnotation)?.trace_id || "";
+    
   return (
     <div className="flex items-start gap-4 pr-5 pt-5">
       <ChatAvatar role={chatMessage.role} />
@@ -137,6 +160,7 @@ export default function ChatMessage({
           isLoading={isLoading}
           append={append}
         />
+        <div className="max-w-[10px] md:max-w-none">
         <Button
           onClick={() => copyToClipboard(chatMessage.content)}
           size="icon"
@@ -149,6 +173,12 @@ export default function ChatMessage({
             <Copy className="h-4 w-4" />
           )}
         </Button>
+        {
+          chatMessage.role !== "user" && (
+            <UserFeedbackComponent traceId={traceId}/>
+          )
+        }
+        </div>
       </div>
     </div>
   );

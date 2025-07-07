@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, validator
 from pydantic.alias_generators import to_camel
 
 from app.config import DATA_DIR
+from app.engine.custom_node_with_score import CustomNodeWithScore
 
 logger = logging.getLogger("uvicorn")
 
@@ -73,6 +74,7 @@ class Message(BaseModel):
     role: MessageRole
     content: str
     annotations: List[Annotation] | None = None
+    trace_id: str | None = None
 
 
 class ChatData(BaseModel):
@@ -148,22 +150,28 @@ class ChatData(BaseModel):
                                 document_ids += fi.content.value
         return list(set(document_ids))
 
+    def clear_chat_messages(self):
+        self.messages = []
+        return self
+
 
 class SourceNodes(BaseModel):
     id: str
+    citation_node_id: str
     metadata: Dict[str, Any]
     score: Optional[float]
     text: str
     url: Optional[str]
 
     @classmethod
-    def from_source_node(cls, source_node: NodeWithScore):
+    def from_source_node(cls, source_node: CustomNodeWithScore):
         metadata = source_node.node.metadata
         url = cls.get_url_from_metadata(metadata)
         logger.info(f"Metadata{metadata}")
 
         return cls(
             id=source_node.node.node_id,
+            citation_node_id=source_node.citation_node_id,
             metadata=metadata,
             score=source_node.score,
             text=source_node.node.text,  # type: ignore
@@ -201,7 +209,7 @@ class SourceNodes(BaseModel):
         return metadata.get("url")
 
     @classmethod
-    def from_source_nodes(cls, source_nodes: List[NodeWithScore]):
+    def from_source_nodes(cls, source_nodes: List[CustomNodeWithScore]):
         return [cls.from_source_node(node) for node in source_nodes]
 
 
@@ -226,3 +234,8 @@ class ChatConfig(BaseModel):
                 ]
             }
         }
+
+
+class ThumbsRequest(BaseModel):
+    trace_id: str
+    value: str

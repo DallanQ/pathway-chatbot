@@ -21,7 +21,9 @@ type Document = {
 export function ChatSources({ data }: { data: SourceData }) {
   const documents: Document[] = useMemo(() => {
     // group nodes by document (a document must have a URL)
+    // Information source
     const nodesByUrl: Record<string, SourceNode[]> = {};
+    
     data.nodes.forEach((node) => {
       const key = node.url;
       nodesByUrl[key] ??= [];
@@ -37,21 +39,33 @@ export function ChatSources({ data }: { data: SourceData }) {
 
   if (documents.length === 0) return null;
 
+  const sortedSources = documents
+  .flatMap(document => document.sources)
+  .sort((a, b) => {
+      const getNumber = (url: string) => parseInt(url.match(/^\d+/)?.[0] || '0', 10);
+      return getNumber(a.citation_node_id) - getNumber(b.citation_node_id);
+  });
+
   return (
     <div className="space-y-2 text-sm">
       <div className="font-semibold text-lg">Sources:</div>
-      <ul style={{listStyleType: "disc", marginLeft: "20px"}}>
-        {documents.map((document, index) => {
-          return (
-            <li key={index}>
-              <a href={document.url} className="hover:underline">{document.url}</a>
-            </li>
-          )
-          // return <DocumentInfo key={document.url} document={document} />;
-        })}
+      <ul style={{ listStyleType: "disc", marginLeft: "10px" }} >
+        {sortedSources.map((node: SourceNode, index: number) => (
+          <li key={index} className="mb-2 md:mb-1">
+            <a
+              href={node.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline break-all"
+            >
+              {node.citation_node_id}. {node.url}
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   );
+  
 }
 
 export function SourceInfo({
@@ -101,6 +115,8 @@ export function SourceNumberButton({
     </span>
   );
 }
+
+// Information source
 
 function DocumentInfo({ document }: { document: Document }) {
   if (!document.sources.length) return null;

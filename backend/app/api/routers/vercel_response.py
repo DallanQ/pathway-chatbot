@@ -8,6 +8,7 @@ from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import ChatData, Message, SourceNodes
 from app.api.services.suggestion import NextQuestionSuggestion
+import time
 
 
 class VercelStreamResponse(StreamingResponse):
@@ -35,9 +36,11 @@ class VercelStreamResponse(StreamingResponse):
         event_handler: EventCallbackHandler,
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
+        tokens: list,
+        trace_id: str | None = None
     ):
         content = VercelStreamResponse.content_generator(
-            request, event_handler, response, chat_data
+            request, event_handler, response, chat_data, tokens, trace_id
         )
         super().__init__(content=content)
 
@@ -48,17 +51,22 @@ class VercelStreamResponse(StreamingResponse):
         event_handler: EventCallbackHandler,
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
+        tokens: list,
+        trace_id: str | None = None
     ):
         # Yield the text response
         async def _chat_response_generator():
             final_response = ""
-            async for token in response.async_response_gen():
+            for token in tokens:
                 final_response += token
+                time.sleep(0.02)
                 yield VercelStreamResponse.convert_text(token)
 
+            
             # Generate questions that user might interested to
             conversation = chat_data.messages + [
-                Message(role="assistant", content=final_response)
+                Message(role="assistant", content=final_response, trace_id=trace_id)
+                # Message(role="assistant", content=final_response)
             ]
             questions = await NextQuestionSuggestion.suggest_next_questions(
                 conversation
@@ -68,6 +76,7 @@ class VercelStreamResponse(StreamingResponse):
                     {
                         "type": "suggested_questions",
                         "data": questions,
+                        "trace_id": trace_id
                     }
                 )
 
@@ -84,6 +93,7 @@ class VercelStreamResponse(StreamingResponse):
                             for node in response.source_nodes
                         ]
                     },
+                    "trace_id": trace_id,
                 }
             )
 
@@ -92,11 +102,13 @@ class VercelStreamResponse(StreamingResponse):
             async for event in event_handler.async_event_gen():
                 event_response = event.to_response()
                 if event_response is not None:
+                    event_response["trace_id"] = trace_id
                     yield VercelStreamResponse.convert_data(event_response)
 
         combine = stream.merge(_chat_response_generator(), _event_generator())
         is_stream_started = False
         async with combine.stream() as streamer:
+            print("streamer", dir(streamer))
             async for output in streamer:
                 if not is_stream_started:
                     is_stream_started = True

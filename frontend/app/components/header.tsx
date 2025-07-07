@@ -1,28 +1,29 @@
-import Image from "next/image";
+import { ExternalLink } from "lucide-react";
 
 export default function Header() {
+  const hints = "https://missionaries.prod.byu-pathway.psdops.com/How-to-use-the-Missionary-Assistant"
+
   return (
-    <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-      <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-        Get started by editing&nbsp;
-        <code className="font-mono font-bold">app/page.tsx</code>
-      </p>
-      <div className="fixed bottom-0 left-0 mb-4 flex h-auto w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:w-auto lg:bg-none lg:mb-0">
-        <a
-          href="https://www.llamaindex.ai/"
-          className="flex items-center justify-center font-nunito text-lg font-bold gap-2"
-        >
-          <span>Built by LlamaIndex</span>
-          <Image
-            className="rounded-xl"
-            src="/llama.png"
-            alt="Llama Logo"
-            width={40}
-            height={40}
-            priority
-          />
-        </a>
+    <header className="w-full bg-[#FFC328] px-3 md:px-6 shadow-none md:py-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between h-full py-2 md:py-0">
+        <div className="w-full flex flex-row items-center justify-between md:justify-between md:w-full">
+          <div className="flex items-center">
+            <img 
+              src="/pathway-horizontal-logo.png" 
+              alt="BYU Pathway Logo" 
+              className="w-[100px] h-auto md:w-[140px]"
+            />
+          </div>
+          <span className="hidden md:block font-nunito text-lg font-semibold text-[#454540] text-center flex-1">Missionary Assistant</span>
+          <a href={hints} target="_blank" className="text-[#454540] font-semibold flex items-center gap-1 text-sm md:text-base hover:text-blue-700">
+            <span className="hidden md:inline">Hints</span>
+            <ExternalLink size={18}/>
+          </a>
+        </div>
+        <div className="w-full flex justify-center mt-1 md:hidden">
+          <span className="font-nunito text-base font-semibold text-[#454540] text-center">Missionary Assistant</span>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
