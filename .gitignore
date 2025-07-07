@@ -1,0 +1,5 @@
+.idea/
+frontend/.idea
+backend/.idea
+frontend/.env
+backend/.env
