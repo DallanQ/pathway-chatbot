@@ -4,6 +4,7 @@ import { useChat } from "ai/react";
 import { useState } from "react";
 import { ChatInput, ChatMessages } from "./ui/chat";
 import { useClientConfig } from "./ui/chat/hooks/use-config";
+import DisclaimerMessage from "./disclaimer-message";
 
 export default function ChatSection() {
   const { backend } = useClientConfig();
@@ -32,25 +33,39 @@ export default function ChatSection() {
   });
 
   return (
-    <div className="space-y-4 w-full h-full flex flex-col">
-      <ChatMessages
-        messages={messages}
-        isLoading={isLoading}
-        reload={reload}
-        stop={stop}
-        append={append}
-      />
-      <ChatInput
-        input={input}
-        handleSubmit={handleSubmit}
-        handleInputChange={handleInputChange}
-        isLoading={isLoading}
-        messages={messages}
-        append={append}
-        setInput={setInput}
-        requestParams={{ params: requestData }}
-        setRequestData={setRequestData}
-      />
+    <div className="w-full h-full flex flex-col bg-white p-4 lg:p-6 rounded-b-lg">
+      
+      <div className="flex-grow flex flex-col">
+        {messages.length === 0 && !isLoading ? (
+          // If chat is empty, show disclaimer
+          <div className="flex-grow flex flex-col justify-end">
+            <DisclaimerMessage />
+          </div>
+        ) : (
+          // Otherwise, show the chat messages.
+          <ChatMessages
+            messages={messages}
+            isLoading={isLoading}
+            reload={reload}
+            stop={stop}
+            append={append}
+          />
+        )}
+      </div>
+
+      <div className="mt-4">
+        <ChatInput
+          input={input}
+          handleSubmit={handleSubmit}
+          handleInputChange={handleInputChange}
+          isLoading={isLoading}
+          messages={messages}
+          append={append}
+          setInput={setInput}
+          requestParams={{ params: requestData }}
+          setRequestData={setRequestData}
+        />
+      </div>
     </div>
   );
 }
