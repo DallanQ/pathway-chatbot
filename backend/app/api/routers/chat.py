@@ -53,8 +53,9 @@ async def chat(
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
-        filters = generate_filters(doc_ids)
         params = data.data or {}
+        role = params.get("role", "missionary")
+        filters = generate_filters(doc_ids, role)
         logger.info(
             f"Creating chat engine with filters: {str(filters)}",
         )
@@ -112,8 +113,9 @@ async def chat_request(
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
-        filters = generate_filters(doc_ids)
         params = data.data or {}
+        role = params.get("role", "missionary")
+        filters = generate_filters(doc_ids, role)
         logger.info(
             f"Creating chat engine with filters: {str(filters)}",
         )
@@ -161,7 +163,7 @@ async def chat_request(
 
 @r.post("/thumbs_request")
 async def thumbs_request(request: ThumbsRequest):
-    trace_id = request.trace_id
+    trace_.id = request.trace_id
     value = request.value
     score_id = f'{trace_id}_feedback'
 
