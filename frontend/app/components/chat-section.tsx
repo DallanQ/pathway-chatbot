@@ -35,12 +35,14 @@ export default function ChatSection() {
 
   const customHandleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const role = isAcmChecked ? "ACM" : "missionary";
+    const data = {
+      question: input,
+      role: role,
+    };
+    setRequestData(data);
     handleSubmit(e, {
       body: {
-        data: {
-          question: input,
-          role: role,
-        },
+        data: data,
       },
     });
   };

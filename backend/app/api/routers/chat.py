@@ -53,9 +53,9 @@ async def chat(
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
-        role = data.data.get("role", "missionary")
-        filters = generate_filters(doc_ids, role)
         params = data.data or {}
+        role = params.get("role", "missionary")
+        filters = generate_filters(doc_ids, role)
         logger.info(
             f"Creating chat engine with filters: {str(filters)}",
         )
@@ -113,9 +113,9 @@ async def chat_request(
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
-        role = data.data.get("role", "missionary")
-        filters = generate_filters(doc_ids, role)
         params = data.data or {}
+        role = params.get("role", "missionary")
+        filters = generate_filters(doc_ids, role)
         logger.info(
             f"Creating chat engine with filters: {str(filters)}",
         )
