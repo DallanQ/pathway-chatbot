@@ -163,7 +163,7 @@ async def chat_request(
 
 @r.post("/thumbs_request")
 async def thumbs_request(request: ThumbsRequest):
-    trace_.id = request.trace_id
+    trace_id = request.trace_id
     value = request.value
     score_id = f'{trace_id}_feedback'
 
