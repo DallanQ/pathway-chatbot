@@ -27,6 +27,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
         vector_store_query_mode=query_mode,
         similarity_top_k=retriever_k,
         sparse_top_k=sparse_k,
+        filters=filters,
     )
     
     SYSTEM_CITATION_PROMPT = """
