@@ -16,7 +16,7 @@ export default function Header() {
           </div>
           <span className="hidden md:block font-nunito text-lg font-semibold text-[#454540] text-center flex-1">Missionary Assistant</span>
           <a href={hints} target="_blank" className="text-[#454540] font-semibold flex items-center gap-1 text-sm md:text-base hover:text-blue-700">
-            <span className="hidden md:inline">Hints</span>
+            <span className="hidden md:inline">Help</span>
             <ExternalLink size={18}/>
           </a>
         </div>
