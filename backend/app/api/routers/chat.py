@@ -80,8 +80,13 @@ async def chat(
         async for token in response.async_response_gen():
             tokens.append(token)
 
+        langfuse_input = (
+            f"(ACMs Question): {last_message_content}"
+            if role == "ACM"
+            else last_message_content
+        )
         langfuse_context.update_current_trace(
-            input=last_message_content, output=response.response, metadata=retrieved
+            input=langfuse_input, output=response.response, metadata=retrieved
         )
 
         trace_id = langfuse_context.get_current_trace_id()
@@ -132,9 +137,14 @@ async def chat_request(
             ]
         )
 
+        langfuse_input = (
+            f"(ACMs Question): {last_message_content}"
+            if role == "ACM"
+            else last_message_content
+        )
         # Set the input, output and metadata of Langfuse
         langfuse_context.update_current_trace(
-            input=last_message_content,
+            input=langfuse_input,
             output=response.response,
             metadata={"nodes": retrieved},
         )
