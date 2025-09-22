@@ -3,6 +3,7 @@ from typing import Tuple, List, Dict, Any
 from collections import defaultdict
 import traceback
 import sys
+import os # Already imported, but good to be explicit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from llama_index.core.chat_engine.types import BaseChatEngine, NodeWithScore
@@ -21,6 +22,8 @@ from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
+from app.settings import APP_ENV # Import APP_ENV
+from app.utils.geo_ip import get_location_from_ip # Import get_location_from_ip
 
 chat_router = r = APIRouter()
 
@@ -47,6 +50,35 @@ async def chat(
     background_tasks: BackgroundTasks,
 ):
     try:
+        # --- Start IP and Geo-IP Logic ---
+        client_ip = data.data.get("clientIp") if data.data and "clientIp" in data.data else None
+        if not client_ip:
+            x_forwarded_for = request.headers.get("X-Forwarded-For")
+            x_real_ip = request.headers.get("X-Real-IP")
+
+            if x_forwarded_for:
+                # X-Forwarded-For can contain multiple IPs, the client IP is usually the first one
+                client_ip = x_forwarded_for.split(',')[0].strip()
+            elif x_real_ip:
+                client_ip = x_real_ip.strip()
+            else:
+                client_ip = request.client.host
+
+        geo_info = None
+        if APP_ENV == "development":
+            geo_info = {"country": "local", "state": "local", "city": "local"}
+            logger.info(f"Development environment: Using local geo info for IP {client_ip}")
+        else:
+            if client_ip:
+                geo_info = await get_location_from_ip(client_ip)
+                if geo_info:
+                    logger.info(f"Geoapify lookup for IP {client_ip}: {geo_info}")
+                else:
+                    logger.warning(f"Could not get geo info for IP {client_ip} from Geoapify.")
+            else:
+                logger.warning("Client IP not found for Geoapify lookup.")
+        # --- End IP and Geo-IP Logic ---
+
         last_message_content = data.get_last_message_content()
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
@@ -85,9 +117,16 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
+        
+        # --- Update Langfuse Metadata ---
+        metadata = {"retrieved_nodes": retrieved}
+        if geo_info:
+            metadata.update(geo_info)
+
         langfuse_context.update_current_trace(
-            input=langfuse_input, output=response.response, metadata=retrieved
+            input=langfuse_input, output=response.response, metadata=metadata
         )
+        # --- End Update Langfuse Metadata ---
 
         trace_id = langfuse_context.get_current_trace_id()
         logger.info(f"We got the trace id to be : {trace_id}")
@@ -105,13 +144,44 @@ async def chat(
         ) from e
 
 
+
 # non-streaming endpoint - delete if not needed
 @r.post("/request")
 @observe()
 async def chat_request(
+    request: Request, # Added request parameter
     data: ChatData,
 ) -> Result:
     try:
+        # --- Start IP and Geo-IP Logic ---
+        client_ip = data.data.get("clientIp") if data.data and "clientIp" in data.data else None
+        if not client_ip:
+            x_forwarded_for = request.headers.get("X-Forwarded-For")
+            x_real_ip = request.headers.get("X-Real-IP")
+
+            if x_forwarded_for:
+                # X-Forwarded-For can contain multiple IPs, the client IP is usually the first one
+                client_ip = x_forwarded_for.split(',')[0].strip()
+            elif x_real_ip:
+                client_ip = x_real_ip.strip()
+            else:
+                client_ip = request.client.host
+
+        geo_info = None
+        if APP_ENV == "development":
+            geo_info = {"country": "local", "state": "local", "city": "local"}
+            logger.info(f"Development environment: Using local geo info for IP {client_ip}")
+        else:
+            if client_ip:
+                geo_info = await get_location_from_ip(client_ip)
+                if geo_info:
+                    logger.info(f"Geoapify lookup for IP {client_ip}: {geo_info}")
+                else:
+                    logger.warning(f"Could not get geo info for IP {client_ip} from Geoapify.")
+            else:
+                logger.warning("Client IP not found for Geoapify lookup.")
+        # --- End IP and Geo-IP Logic ---
+
         last_message_content = data.get_last_message_content()
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
@@ -142,12 +212,18 @@ async def chat_request(
             if role == "ACM"
             else last_message_content
         )
-        # Set the input, output and metadata of Langfuse
+        
+        # --- Update Langfuse Metadata ---
+        metadata = {"nodes": retrieved}
+        if geo_info:
+            metadata.update(geo_info)
+
         langfuse_context.update_current_trace(
             input=langfuse_input,
             output=response.response,
-            metadata={"nodes": retrieved},
+            metadata=metadata,
         )
+        # --- End Update Langfuse Metadata ---
 
         # Get the trace_id of Langfuse
         trace_id = langfuse_context.get_current_trace_id()
@@ -169,6 +245,7 @@ async def chat_request(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error in chat engine: {e}",
         ) from e
+
 
 
 @r.post("/thumbs_request")

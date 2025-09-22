@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "ai/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DisclaimerMessage from "./disclaimer-message";
 import { ChatInput, ChatMessages } from "./ui/chat";
 import { useClientConfig } from "./ui/chat/hooks/use-config";
@@ -10,6 +10,24 @@ export default function ChatSection() {
   const { backend } = useClientConfig();
   const [requestData, setRequestData] = useState<any>();
   const [isAcmChecked, setIsAcmChecked] = useState(false);
+  const [clientIp, setClientIp] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchIp = async () => {
+      try {
+        const response = await fetch('/api/ip');
+        if (response.ok) {
+          const ip = await response.text();
+          setClientIp(ip);
+        } else {
+          console.error('Failed to fetch IP address:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching IP address:', error);
+      }
+    };
+    fetchIp();
+  }, []);
   const {
     messages,
     input,
@@ -38,6 +56,7 @@ export default function ChatSection() {
     const data = {
       question: input,
       role: role,
+      clientIp: clientIp,
     };
     setRequestData(data);
     handleSubmit(e, {

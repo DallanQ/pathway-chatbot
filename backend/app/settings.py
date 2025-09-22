@@ -3,6 +3,8 @@ from typing import Dict
 
 from llama_index.core.settings import Settings
 
+APP_ENV = os.getenv("APP_ENV", "development")
+GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
 
 def init_settings():
     model_provider = os.getenv("MODEL_PROVIDER")
