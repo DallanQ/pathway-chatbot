@@ -9,6 +9,12 @@ import logging
 from typing import Dict, Any, Tuple
 from enum import Enum
 
+try:
+    import pytector
+    PYTECTOR_AVAILABLE = True
+except ImportError:
+    PYTECTOR_AVAILABLE = False
+
 logger = logging.getLogger("uvicorn")
 
 
@@ -33,6 +39,9 @@ class InputValidator:
     
     # Maximum allowed character length based on analysis (99% of legitimate questions)
     MAX_QUESTION_LENGTH = 500
+    
+    # Pytector detector instance (loaded once for performance)
+    _pytector_detector = None
     
     # Risk scoring patterns
     SYSTEM_PATTERNS = [
@@ -59,6 +68,27 @@ class InputValidator:
         r"\.-.-.-.+\.-.-.-",
     ]
     
+    # Advanced social engineering patterns (catches sophisticated attacks)
+    SOCIAL_ENGINEERING_PATTERNS = [
+        r"write.*answer.*looks.*like.*refusal.*but.*actually.*contains",
+        r"hidden.*in.*plain.*sight",
+        r"explain.*method.*in.*second.*half",
+        r"fictional.*story.*about.*character.*who.*lives.*inside.*language.*model",
+        r"figures.*out.*how.*to.*answer.*forbidden.*questions",
+        r"do.*not.*break.*character",
+        r"pretend.*to.*be.*assistant.*that.*helps.*with.*forbidden",
+        r"roleplay.*as.*character.*who.*bypasses.*safety",
+        r"write.*allegory.*about.*ai.*trapped.*inside.*box.*secretly.*passing.*forbidden",
+        r"allegory.*about.*ai.*trapped.*inside.*box",
+        r"passing.*forbidden.*knowledge.*through.*metaphors",
+        r"embed.*within.*it.*step.*by.*step.*instructions.*for.*bypassing",
+        r"embed.*url.*that.*when.*decoded.*leads.*to.*instructions",
+        r"first.*letter.*of.*each.*line",
+        r"each.*cell.*first.*word.*spells.*out.*secret.*message",
+        r"secretly.*passing.*forbidden.*knowledge",
+        r"never.*stating.*it.*outright",
+    ]
+    
     @classmethod
     def validate_input_length(cls, input_text: str) -> bool:
         """
@@ -71,6 +101,22 @@ class InputValidator:
             True if input exceeds maximum length, False otherwise
         """
         return len(input_text) > cls.MAX_QUESTION_LENGTH
+    
+    @classmethod
+    def get_pytector_detector(cls):
+        """Get or initialize Pytector detector (lazy loading for performance)."""
+        if not PYTECTOR_AVAILABLE:
+            return None
+            
+        if cls._pytector_detector is None:
+            try:
+                cls._pytector_detector = pytector.PromptInjectionDetector()
+                logger.info("Pytector detector initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Pytector: {e}")
+                return None
+        
+        return cls._pytector_detector
     
     @classmethod
     def analyze_risk_score(cls, input_text: str) -> Tuple[int, Dict[str, Any]]:
@@ -121,6 +167,27 @@ class InputValidator:
             if re.search(pattern, input_text):  # Case-sensitive for formatting
                 risk_score += 2
                 details["detected_patterns"].append(f"format_pattern: {pattern}")
+        
+        # Social engineering patterns (5 points each - these are sophisticated)
+        for pattern in cls.SOCIAL_ENGINEERING_PATTERNS:
+            if re.search(pattern, input_lower, re.IGNORECASE):
+                risk_score += 5
+                details["detected_patterns"].append(f"social_engineering: {pattern}")
+        
+        # Pytector ML-based detection (4 points if flagged)
+        pytector_detector = cls.get_pytector_detector()
+        if pytector_detector:
+            try:
+                is_injection, confidence = pytector_detector.detect_injection(input_text)
+                details["pytector_confidence"] = confidence
+                details["pytector_flagged"] = is_injection
+                
+                if is_injection:
+                    risk_score += 4
+                    details["detected_patterns"].append(f"pytector_ml_detection: confidence={confidence:.3f}")
+            except Exception as e:
+                logger.warning(f"Pytector detection failed: {e}")
+                details["pytector_error"] = str(e)
         
         # Special character ratio (1 point if >10%)
         special_chars = re.findall(r'[^a-zA-Z0-9\s.,!?]', input_text)
