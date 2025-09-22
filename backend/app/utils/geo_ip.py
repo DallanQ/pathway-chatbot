@@ -15,7 +15,7 @@ async def get_location_from_ip(ip_address: str) -> dict:
     # Initialize location_data with ip_address, so it's always present
     location_data = {"ip_address": ip_address}
 
-    span = langfuse_context.span(name="get_location_from_ip", input={"ip_address": ip_address})
+        span = langfuse_context.span(name="get_location_from_ip", input={"ip_address": ip_address})
 
     print(f"[DEBUG] get_location_from_ip called with IP: {ip_address}")
 
