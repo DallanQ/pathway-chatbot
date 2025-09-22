@@ -122,6 +122,8 @@ async def chat(
         metadata = {"retrieved_nodes": retrieved}
         if geo_info:
             metadata.update(geo_info)
+        if client_ip:
+            metadata["client_ip"] = client_ip
 
         langfuse_context.update_current_trace(
             input=langfuse_input, output=response.response, metadata=metadata
@@ -217,6 +219,8 @@ async def chat_request(
         metadata = {"nodes": retrieved}
         if geo_info:
             metadata.update(geo_info)
+        if client_ip:
+            metadata["client_ip"] = client_ip
 
         langfuse_context.update_current_trace(
             input=langfuse_input,
