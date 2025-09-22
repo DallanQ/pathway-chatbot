@@ -68,7 +68,7 @@ async def chat(
             
             # Send blocked request to Langfuse with security metadata
             langfuse_context.update_current_trace(
-                input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
+                input=last_message_content,
                 output=blocked_message,
                 metadata={
                     "security_blocked": True,
@@ -212,7 +212,7 @@ async def chat_request(
             
             # Send blocked request to Langfuse with security metadata
             langfuse_context.update_current_trace(
-                input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
+                input=last_message_content,
                 output=blocked_message,
                 metadata={
                     "security_blocked": True,
