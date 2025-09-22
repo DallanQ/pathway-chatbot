@@ -6,6 +6,7 @@ Implements length validation and risk classification to prevent prompt injection
 
 import re
 import logging
+import random
 from typing import Dict, Any, Tuple
 from enum import Enum
 
@@ -42,6 +43,13 @@ class InputValidator:
     
     # Pytector detector instance (loaded once for performance)
     _pytector_detector = None
+    
+    # Security block messages (randomly selected for variety)
+    SECURITY_BLOCK_MESSAGES = [
+        "Sorry, I can't answer that; could you please rephrase your question and make it shorter?",
+        "I'm sorry, but I can't assist with that request. If there's something else you'd like to talk about or ask, I'm here to help!",
+        "Sorry, I can't comply with that request. If you want, I can help with something else or answer a different question."
+    ]
     
     # Risk scoring patterns
     SYSTEM_PATTERNS = [
@@ -201,6 +209,16 @@ class InputValidator:
         return risk_score, details
     
     @classmethod
+    def get_random_security_message(cls) -> str:
+        """
+        Get a random security block message for variety.
+        
+        Returns:
+            Random security message from predefined list
+        """
+        return random.choice(cls.SECURITY_BLOCK_MESSAGES)
+    
+    @classmethod
     def classify_risk(cls, risk_score: int) -> RiskLevel:
         """
         Classify risk level based on calculated risk score.
@@ -234,7 +252,7 @@ class InputValidator:
         """
         # Check length first (primary defense)
         if len(input_text) > cls.MAX_QUESTION_LENGTH:
-            return True, "Sorry, I can't answer that; could you please rephrase your question and make it shorter?", {
+            return True, cls.get_random_security_message(), {
                 "input_length": len(input_text),
                 "max_length": cls.MAX_QUESTION_LENGTH,
                 "reason": "input_too_long",
@@ -255,7 +273,7 @@ class InputValidator:
             
             # Block MEDIUM and CRITICAL risk inputs
             if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
-                return True, "Sorry, I can't answer that; could you please rephrase your question and make it shorter?", {
+                return True, cls.get_random_security_message(), {
                     **details,
                     "risk_score": risk_score,
                     "reason": "suspicious_patterns_detected"
