@@ -16,6 +16,12 @@ try:
 except ImportError:
     PYTECTOR_AVAILABLE = False
 
+try:
+    from llama_index.core.settings import Settings
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+
 logger = logging.getLogger("uvicorn")
 
 
@@ -209,9 +215,61 @@ class InputValidator:
         return risk_score, details
     
     @classmethod
+    async def generate_contextual_security_message(cls, input_text: str) -> str:
+        """
+        Generate a contextual security response in the same language as the input.
+        Falls back to random static message if LLM is unavailable.
+        
+        Args:
+            input_text: The user input that was blocked
+            
+        Returns:
+            Contextual security message in appropriate language
+        """
+        if not LLM_AVAILABLE:
+            logger.warning("LLM not available for contextual security messages, using fallback")
+            return cls.get_random_security_message()
+        
+        try:
+            # Create a safe excerpt for the LLM (first 100 chars to avoid exposing full attack)
+            safe_excerpt = input_text[:100] if len(input_text) > 100 else input_text
+            
+            security_prompt = f"""The user submitted a request that cannot be processed for security reasons. Please generate a polite, helpful response that:
+
+1. Declines to answer the request in the SAME LANGUAGE the user used
+2. Suggests the user can rephrase their question or ask something else
+3. Maintains a friendly, helpful tone
+4. Does NOT repeat or reference the specific content of their request
+
+User's request (excerpt): "{safe_excerpt}"
+
+Respond directly with just the polite decline message, nothing else."""
+
+            # Generate response using the configured LLM
+            response = await Settings.llm.acomplete(security_prompt)
+            generated_message = response.text.strip()
+            
+            # Validate the generated message (basic safety check)
+            if len(generated_message) > 500:  # Too long
+                logger.warning("Generated security message too long, using fallback")
+                return cls.get_random_security_message()
+            
+            if not generated_message or len(generated_message) < 10:  # Too short/empty
+                logger.warning("Generated security message too short, using fallback")
+                return cls.get_random_security_message()
+            
+            logger.info("Generated contextual security message successfully")
+            return generated_message
+            
+        except Exception as e:
+            logger.error(f"Failed to generate contextual security message: {e}")
+            return cls.get_random_security_message()
+    
+    @classmethod
     def get_random_security_message(cls) -> str:
         """
         Get a random security block message for variety.
+        Used as fallback when contextual generation fails.
         
         Returns:
             Random security message from predefined list
@@ -237,9 +295,62 @@ class InputValidator:
             return RiskLevel.LOW
     
     @classmethod
+    async def validate_input_security_async(cls, input_text: str) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Comprehensive async security validation of user input with contextual responses.
+        
+        Args:
+            input_text: The user input to validate
+            
+        Returns:
+            Tuple of (is_suspicious, blocked_message_or_empty, details_dict)
+            - is_suspicious: True if input contains suspicious patterns
+            - blocked_message_or_empty: Error message if blocked, empty string if allowed
+            - details_dict: Security analysis details
+        """
+        # Check length first (primary defense)
+        if len(input_text) > cls.MAX_QUESTION_LENGTH:
+            contextual_message = await cls.generate_contextual_security_message(input_text)
+            return True, contextual_message, {
+                "input_length": len(input_text),
+                "max_length": cls.MAX_QUESTION_LENGTH,
+                "reason": "input_too_long",
+                "risk_level": "CRITICAL",
+                "is_suspicious": True
+            }
+        
+        # Analyze risk patterns
+        risk_score, details = cls.analyze_risk_score(input_text)
+        risk_level = cls.classify_risk(risk_score)
+        
+        # Determine if input is suspicious (has any detected patterns)
+        is_suspicious = len(details.get("detected_patterns", [])) > 0 or risk_score > 0
+        
+        if is_suspicious:
+            details["risk_level"] = risk_level.value
+            details["is_suspicious"] = True
+            
+            # Block MEDIUM and CRITICAL risk inputs
+            if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
+                contextual_message = await cls.generate_contextual_security_message(input_text)
+                return True, contextual_message, {
+                    **details,
+                    "risk_score": risk_score,
+                    "reason": "suspicious_patterns_detected"
+                }
+        else:
+            # Non-suspicious input - no risk classification needed
+            details["is_suspicious"] = False
+        
+        return is_suspicious, "", details
+
+    @classmethod
     def validate_input_security(cls, input_text: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Comprehensive security validation of user input.
+        Comprehensive security validation of user input (synchronous fallback).
+        
+        NOTE: Use validate_input_security_async() for better language-aware responses.
+        This method uses static English messages as fallback.
         
         Args:
             input_text: The user input to validate
