@@ -54,37 +54,56 @@ async def chat(
         last_message_content = data.get_last_message_content()
         
         # Security validation - primary defense
-        try:
-            risk_level, security_details = InputValidator.validate_input_security(last_message_content)
-            # If we reach here, input is LOW risk and safe to process
-            # Sanitize the input as additional protection
-            last_message_content = InputValidator.sanitize_input(last_message_content)
-            
-        except SecurityValidationError as security_error:
+        is_suspicious, blocked_message, security_details = InputValidator.validate_input_security(last_message_content)
+        
+        # If input is blocked, return the security message as a normal response
+        if blocked_message:
             # Log security event for monitoring
             logger.warning(
-                f"Security validation failed - Risk: {security_error.risk_level.value}, "
-                f"Details: {security_error.details}, "
+                f"Security validation blocked suspicious input - "
+                f"Risk: {security_details.get('risk_level', 'UNKNOWN')}, "
+                f"Reason: {security_details.get('reason', 'unknown')}, "
                 f"IP: {request.client.host if request.client else 'unknown'}"
             )
             
             # Send blocked request to Langfuse with security metadata
             langfuse_context.update_current_trace(
                 input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
-                output=security_error.message,
+                output=blocked_message,
                 metadata={
                     "security_blocked": True,
-                    "risk_level": security_error.risk_level.value,
-                    "security_details": security_error.details,
-                    "blocked_reason": security_error.details.get("reason", "security_validation_failed")
+                    "risk_level": security_details.get("risk_level", "UNKNOWN"),
+                    "security_details": security_details,
+                    "blocked_reason": security_details.get("reason", "security_validation_failed")
                 }
             )
             
-            # Return security error as HTTP 400
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=security_error.message
+            # Return blocked message as normal response (not HTTP error)
+            from llama_index.core.llms import MessageRole
+            blocked_response = Message(
+                role=MessageRole.ASSISTANT, 
+                content=blocked_message
             )
+            
+            # Create a simple response structure for blocked content
+            class BlockedResponse:
+                def __init__(self, message):
+                    self.response = message
+                    self.source_nodes = []
+                
+                async def async_response_gen(self):
+                    yield self.response
+            
+            blocked_chat_response = BlockedResponse(blocked_message)
+            tokens = [blocked_message]
+            
+            return VercelStreamResponse(
+                request, EventCallbackHandler(), blocked_chat_response, data, tokens
+            )
+        
+        # Sanitize allowed input as additional protection
+        if is_suspicious and security_details.get("risk_level") == "LOW":
+            last_message_content = InputValidator.sanitize_input(last_message_content)
         
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
@@ -125,14 +144,24 @@ async def chat(
         )
         
         # Enhanced metadata with security information
+        security_metadata = {
+            "input_validated": True,
+            "input_sanitized": True
+        }
+        
+        # Only add risk classification for suspicious inputs
+        if is_suspicious:
+            security_metadata.update({
+                "is_suspicious": True,
+                "risk_level": security_details.get("risk_level", "LOW"),
+                "security_details": security_details
+            })
+        else:
+            security_metadata["is_suspicious"] = False
+        
         enhanced_metadata = {
             "retrieved_docs": retrieved,
-            "security_validation": {
-                "risk_level": risk_level.value if risk_level else "LOW",
-                "security_details": security_details,
-                "input_validated": True,
-                "input_sanitized": True
-            }
+            "security_validation": security_metadata
         }
         
         langfuse_context.update_current_trace(
@@ -170,36 +199,41 @@ async def chat_request(
         last_message_content = data.get_last_message_content()
         
         # Security validation - primary defense
-        try:
-            risk_level, security_details = InputValidator.validate_input_security(last_message_content)
-            # If we reach here, input is LOW risk and safe to process
-            # Sanitize the input as additional protection
-            last_message_content = InputValidator.sanitize_input(last_message_content)
-            
-        except SecurityValidationError as security_error:
+        is_suspicious, blocked_message, security_details = InputValidator.validate_input_security(last_message_content)
+        
+        # If input is blocked, return the security message as a normal response
+        if blocked_message:
             # Log security event for monitoring
             logger.warning(
-                f"Security validation failed - Risk: {security_error.risk_level.value}, "
-                f"Details: {security_error.details}"
+                f"Security validation blocked suspicious input - "
+                f"Risk: {security_details.get('risk_level', 'UNKNOWN')}, "
+                f"Reason: {security_details.get('reason', 'unknown')}"
             )
             
             # Send blocked request to Langfuse with security metadata
             langfuse_context.update_current_trace(
                 input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
-                output=security_error.message,
+                output=blocked_message,
                 metadata={
                     "security_blocked": True,
-                    "risk_level": security_error.risk_level.value,
-                    "security_details": security_error.details,
-                    "blocked_reason": security_error.details.get("reason", "security_validation_failed")
+                    "risk_level": security_details.get("risk_level", "UNKNOWN"),
+                    "security_details": security_details,
+                    "blocked_reason": security_details.get("reason", "security_validation_failed")
                 }
             )
             
-            # Return security error as HTTP 400
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=security_error.message
+            # Return blocked message as normal response
+            return Result(
+                result=Message(
+                    role=MessageRole.ASSISTANT, 
+                    content=blocked_message
+                ),
+                nodes=SourceNodes.from_source_nodes([])  # No source nodes for blocked content
             )
+        
+        # Sanitize allowed input as additional protection
+        if is_suspicious and security_details.get("risk_level") == "LOW":
+            last_message_content = InputValidator.sanitize_input(last_message_content)
         
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
@@ -232,14 +266,24 @@ async def chat_request(
         )
         
         # Enhanced metadata with security information
+        security_metadata = {
+            "input_validated": True,
+            "input_sanitized": True
+        }
+        
+        # Only add risk classification for suspicious inputs
+        if is_suspicious:
+            security_metadata.update({
+                "is_suspicious": True,
+                "risk_level": security_details.get("risk_level", "LOW"),
+                "security_details": security_details
+            })
+        else:
+            security_metadata["is_suspicious"] = False
+        
         enhanced_metadata = {
             "nodes": retrieved,
-            "security_validation": {
-                "risk_level": risk_level.value if risk_level else "LOW",
-                "security_details": security_details,
-                "input_validated": True,
-                "input_sanitized": True
-            }
+            "security_validation": security_metadata
         }
         
         # Set the input, output and metadata of Langfuse

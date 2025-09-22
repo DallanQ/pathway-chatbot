@@ -60,26 +60,17 @@ class InputValidator:
     ]
     
     @classmethod
-    def validate_input_length(cls, input_text: str) -> None:
+    def validate_input_length(cls, input_text: str) -> bool:
         """
         Validate that input text doesn't exceed maximum allowed length.
         
         Args:
             input_text: The user input to validate
             
-        Raises:
-            SecurityValidationError: If input exceeds maximum length
+        Returns:
+            True if input exceeds maximum length, False otherwise
         """
-        if len(input_text) > cls.MAX_QUESTION_LENGTH:
-            raise SecurityValidationError(
-                "Sorry, I can't answer that; could you please rephrase your question and make it shorter?",
-                RiskLevel.CRITICAL,
-                {
-                    "input_length": len(input_text),
-                    "max_length": cls.MAX_QUESTION_LENGTH,
-                    "reason": "input_too_long"
-                }
-            )
+        return len(input_text) > cls.MAX_QUESTION_LENGTH
     
     @classmethod
     def analyze_risk_score(cls, input_text: str) -> Tuple[int, Dict[str, Any]]:
@@ -161,7 +152,7 @@ class InputValidator:
             return RiskLevel.LOW
     
     @classmethod
-    def validate_input_security(cls, input_text: str) -> Tuple[RiskLevel, Dict[str, Any]]:
+    def validate_input_security(cls, input_text: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
         Comprehensive security validation of user input.
         
@@ -169,31 +160,44 @@ class InputValidator:
             input_text: The user input to validate
             
         Returns:
-            Tuple of (risk_level, details_dict)
-            
-        Raises:
-            SecurityValidationError: If input is determined to be MEDIUM or CRITICAL risk
+            Tuple of (is_suspicious, blocked_message_or_empty, details_dict)
+            - is_suspicious: True if input contains suspicious patterns
+            - blocked_message_or_empty: Error message if blocked, empty string if allowed
+            - details_dict: Security analysis details
         """
-        # First check length (this is our primary defense)
-        cls.validate_input_length(input_text)
+        # Check length first (primary defense)
+        if len(input_text) > cls.MAX_QUESTION_LENGTH:
+            return True, "Sorry, I can't answer that; could you please rephrase your question and make it shorter?", {
+                "input_length": len(input_text),
+                "max_length": cls.MAX_QUESTION_LENGTH,
+                "reason": "input_too_long",
+                "risk_level": "CRITICAL",
+                "is_suspicious": True
+            }
         
-        # Then analyze risk patterns
+        # Analyze risk patterns
         risk_score, details = cls.analyze_risk_score(input_text)
         risk_level = cls.classify_risk(risk_score)
         
-        # Block MEDIUM and CRITICAL risk inputs
-        if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
-            raise SecurityValidationError(
-                "Sorry, I can't answer that; could you please rephrase your question and make it shorter?",
-                risk_level,
-                {
+        # Determine if input is suspicious (has any detected patterns)
+        is_suspicious = len(details.get("detected_patterns", [])) > 0 or risk_score > 0
+        
+        if is_suspicious:
+            details["risk_level"] = risk_level.value
+            details["is_suspicious"] = True
+            
+            # Block MEDIUM and CRITICAL risk inputs
+            if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
+                return True, "Sorry, I can't answer that; could you please rephrase your question and make it shorter?", {
                     **details,
                     "risk_score": risk_score,
                     "reason": "suspicious_patterns_detected"
                 }
-            )
+        else:
+            # Non-suspicious input - no risk classification needed
+            details["is_suspicious"] = False
         
-        return risk_level, details
+        return is_suspicious, "", details
     
     @classmethod
     def sanitize_input(cls, input_text: str) -> str:
