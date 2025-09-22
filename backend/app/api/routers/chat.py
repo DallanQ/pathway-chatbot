@@ -53,8 +53,8 @@ async def chat(
     try:
         last_message_content = data.get_last_message_content()
         
-        # Security validation - primary defense
-        is_suspicious, blocked_message, security_details = InputValidator.validate_input_security(last_message_content)
+        # Security validation - primary defense with contextual responses
+        is_suspicious, blocked_message, security_details = await InputValidator.validate_input_security_async(last_message_content)
         
         # If input is blocked, return the security message as a normal response
         if blocked_message:
@@ -198,8 +198,8 @@ async def chat_request(
     try:
         last_message_content = data.get_last_message_content()
         
-        # Security validation - primary defense
-        is_suspicious, blocked_message, security_details = InputValidator.validate_input_security(last_message_content)
+        # Security validation - primary defense with contextual responses
+        is_suspicious, blocked_message, security_details = await InputValidator.validate_input_security_async(last_message_content)
         
         # If input is blocked, return the security message as a normal response
         if blocked_message:
