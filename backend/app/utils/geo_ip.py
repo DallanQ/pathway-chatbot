@@ -1,6 +1,7 @@
 import httpx
 import os
 from app.langfuse import langfuse
+from langfuse.decorators import langfuse_context
 
 async def get_location_from_ip(ip_address: str) -> dict:
     """
@@ -15,7 +16,7 @@ async def get_location_from_ip(ip_address: str) -> dict:
     location_data = {"ip_address": ip_address}
 
     # Send IP address to Langfuse
-    with langfuse.span(name="get_location_from_ip", input={"ip_address": ip_address}) as span:
+    with langfuse.span(name="get_location_from_ip", trace_id=langfuse_context.get_current_trace_id(), input={"ip_address": ip_address}) as span:
 
         print(f"[DEBUG] get_location_from_ip called with IP: {ip_address}")
 
