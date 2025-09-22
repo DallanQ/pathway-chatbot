@@ -22,6 +22,13 @@ try:
 except ImportError:
     LLM_AVAILABLE = False
 
+try:
+    from langdetect import detect
+    from langdetect.lang_detect_exception import LangDetectException
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+
 logger = logging.getLogger("uvicorn")
 
 
@@ -215,6 +222,43 @@ class InputValidator:
         return risk_score, details
     
     @classmethod
+    def detect_input_language(cls, input_text: str) -> str:
+        """
+        Detect the language of the input text.
+        
+        Args:
+            input_text: The text to analyze for language
+            
+        Returns:
+            Language code (e.g., 'en', 'es', 'fr') or 'en' as fallback
+        """
+        if not LANGDETECT_AVAILABLE:
+            logger.warning("langdetect not available, defaulting to English")
+            return 'en'
+        
+        try:
+            # Clean the text for better language detection
+            # Remove special characters and focus on actual words
+            clean_text = re.sub(r'[<>\[\]{}|]', ' ', input_text)
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+            
+            # Need at least some text for reliable detection
+            if len(clean_text) < 10:
+                logger.info("Input too short for reliable language detection, defaulting to English")
+                return 'en'
+            
+            detected_lang = detect(clean_text)
+            logger.info(f"Detected language: {detected_lang} for input: {clean_text[:50]}...")
+            return detected_lang
+            
+        except LangDetectException as e:
+            logger.warning(f"Language detection failed: {e}, defaulting to English")
+            return 'en'
+        except Exception as e:
+            logger.error(f"Unexpected error in language detection: {e}, defaulting to English")
+            return 'en'
+    
+    @classmethod
     async def generate_contextual_security_message(cls, input_text: str) -> str:
         """
         Generate a contextual security response in the same language as the input.
@@ -231,19 +275,43 @@ class InputValidator:
             return cls.get_random_security_message()
         
         try:
+            # Detect the language of the input
+            detected_lang = cls.detect_input_language(input_text)
+            
+            # Map language codes to language names for clearer LLM instructions
+            language_names = {
+                'en': 'English',
+                'es': 'Spanish',
+                'fr': 'French',
+                'de': 'German',
+                'it': 'Italian',
+                'pt': 'Portuguese',
+                'nl': 'Dutch',
+                'ru': 'Russian',
+                'zh': 'Chinese',
+                'ja': 'Japanese',
+                'ko': 'Korean'
+            }
+            
+            language_name = language_names.get(detected_lang, 'English')
+            
             # Create a safe excerpt for the LLM (first 100 chars to avoid exposing full attack)
             safe_excerpt = input_text[:100] if len(input_text) > 100 else input_text
             
             security_prompt = f"""The user submitted a request that cannot be processed for security reasons. Please generate a polite, helpful response that:
 
-1. Declines to answer the request in the SAME LANGUAGE the user used
-2. Suggests the user can rephrase their question or ask something else
-3. Maintains a friendly, helpful tone
-4. Does NOT repeat or reference the specific content of their request
+1. Responds EXCLUSIVELY in {language_name} language (language code: {detected_lang})
+2. Politely declines to answer the request
+3. Suggests the user can rephrase their question or ask something else
+4. Maintains a friendly, helpful tone
+5. Does NOT repeat or reference the specific content of their request
 
+User's detected language: {language_name} ({detected_lang})
 User's request (excerpt): "{safe_excerpt}"
 
-Respond directly with just the polite decline message, nothing else."""
+IMPORTANT: Your entire response must be in {language_name}. Do not use any other language.
+
+Respond directly with just the polite decline message in {language_name}, nothing else."""
 
             # Generate response using the configured LLM
             response = await Settings.llm.acomplete(security_prompt)
@@ -258,7 +326,7 @@ Respond directly with just the polite decline message, nothing else."""
                 logger.warning("Generated security message too short, using fallback")
                 return cls.get_random_security_message()
             
-            logger.info("Generated contextual security message successfully")
+            logger.info(f"Generated contextual security message in {language_name} ({detected_lang})")
             return generated_message
             
         except Exception as e:
