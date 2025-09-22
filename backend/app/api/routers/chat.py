@@ -19,6 +19,7 @@ from app.api.routers.models import (
 from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
+from app.security import InputValidator, SecurityValidationError, RiskLevel
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
 
@@ -46,8 +47,45 @@ async def chat(
     data: ChatData,
     background_tasks: BackgroundTasks,
 ):
+    risk_level = None
+    security_details = {}
+    
     try:
         last_message_content = data.get_last_message_content()
+        
+        # Security validation - primary defense
+        try:
+            risk_level, security_details = InputValidator.validate_input_security(last_message_content)
+            # If we reach here, input is LOW risk and safe to process
+            # Sanitize the input as additional protection
+            last_message_content = InputValidator.sanitize_input(last_message_content)
+            
+        except SecurityValidationError as security_error:
+            # Log security event for monitoring
+            logger.warning(
+                f"Security validation failed - Risk: {security_error.risk_level.value}, "
+                f"Details: {security_error.details}, "
+                f"IP: {request.client.host if request.client else 'unknown'}"
+            )
+            
+            # Send blocked request to Langfuse with security metadata
+            langfuse_context.update_current_trace(
+                input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
+                output=security_error.message,
+                metadata={
+                    "security_blocked": True,
+                    "risk_level": security_error.risk_level.value,
+                    "security_details": security_error.details,
+                    "blocked_reason": security_error.details.get("reason", "security_validation_failed")
+                }
+            )
+            
+            # Return security error as HTTP 400
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=security_error.message
+            )
+        
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
         messages = data.get_history_messages()
@@ -85,8 +123,22 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
+        
+        # Enhanced metadata with security information
+        enhanced_metadata = {
+            "retrieved_docs": retrieved,
+            "security_validation": {
+                "risk_level": risk_level.value if risk_level else "LOW",
+                "security_details": security_details,
+                "input_validated": True,
+                "input_sanitized": True
+            }
+        }
+        
         langfuse_context.update_current_trace(
-            input=langfuse_input, output=response.response, metadata=retrieved
+            input=langfuse_input, 
+            output=response.response, 
+            metadata=enhanced_metadata
         )
 
         trace_id = langfuse_context.get_current_trace_id()
@@ -111,8 +163,44 @@ async def chat(
 async def chat_request(
     data: ChatData,
 ) -> Result:
+    risk_level = None
+    security_details = {}
+    
     try:
         last_message_content = data.get_last_message_content()
+        
+        # Security validation - primary defense
+        try:
+            risk_level, security_details = InputValidator.validate_input_security(last_message_content)
+            # If we reach here, input is LOW risk and safe to process
+            # Sanitize the input as additional protection
+            last_message_content = InputValidator.sanitize_input(last_message_content)
+            
+        except SecurityValidationError as security_error:
+            # Log security event for monitoring
+            logger.warning(
+                f"Security validation failed - Risk: {security_error.risk_level.value}, "
+                f"Details: {security_error.details}"
+            )
+            
+            # Send blocked request to Langfuse with security metadata
+            langfuse_context.update_current_trace(
+                input=last_message_content[:100] + "..." if len(last_message_content) > 100 else last_message_content,
+                output=security_error.message,
+                metadata={
+                    "security_blocked": True,
+                    "risk_level": security_error.risk_level.value,
+                    "security_details": security_error.details,
+                    "blocked_reason": security_error.details.get("reason", "security_validation_failed")
+                }
+            )
+            
+            # Return security error as HTTP 400
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=security_error.message
+            )
+        
         # Delete the chat_history of the engine and
         data.clear_chat_messages()
         messages = data.get_history_messages()
@@ -142,11 +230,23 @@ async def chat_request(
             if role == "ACM"
             else last_message_content
         )
+        
+        # Enhanced metadata with security information
+        enhanced_metadata = {
+            "nodes": retrieved,
+            "security_validation": {
+                "risk_level": risk_level.value if risk_level else "LOW",
+                "security_details": security_details,
+                "input_validated": True,
+                "input_sanitized": True
+            }
+        }
+        
         # Set the input, output and metadata of Langfuse
         langfuse_context.update_current_trace(
             input=langfuse_input,
             output=response.response,
-            metadata={"nodes": retrieved},
+            metadata=enhanced_metadata,
         )
 
         # Get the trace_id of Langfuse
