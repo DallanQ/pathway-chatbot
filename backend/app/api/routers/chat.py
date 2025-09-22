@@ -43,7 +43,6 @@ def _log_exception_trace():
 
 # streaming endpoint - delete if not needed
 @r.post("")
-@observe()
 async def chat(
     request: Request,
     data: ChatData,
@@ -149,7 +148,6 @@ async def chat(
 
 # non-streaming endpoint - delete if not needed
 @r.post("/request")
-@observe()
 async def chat_request(
     request: Request, # Added request parameter
     data: ChatData,
