@@ -21,6 +21,7 @@ from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
+from app.utils.geo_ip import get_geo_data
 
 chat_router = r = APIRouter()
 
@@ -85,8 +86,11 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
+        client_ip = request.client.host
+        geo_data = await get_geo_data(client_ip)
+
         langfuse_context.update_current_trace(
-            input=langfuse_input, output=response.response, metadata=retrieved
+            input=langfuse_input, output=response.response, metadata={"retrieved_nodes": retrieved, **geo_data}
         )
 
         trace_id = langfuse_context.get_current_trace_id()
