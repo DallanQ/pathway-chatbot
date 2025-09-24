@@ -22,6 +22,7 @@ from app.engine.query_filter import generate_filters
 from app.security import InputValidator, SecurityValidationError, RiskLevel
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
+from app.utils.geo_ip import get_geo_data
 
 chat_router = r = APIRouter()
 
@@ -142,6 +143,15 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
+        client_ip = request.client.host
+        # For local development, use a test IP when localhost is detected
+        # In production, real user IPs will be used
+        if client_ip in ["127.0.0.1", "::1", "localhost"]:
+            # Use Google's DNS IP for local testing to demonstrate geo functionality
+            geo_ip = "8.8.8.8"
+        else:
+            geo_ip = client_ip
+        geo_data = await get_geo_data(geo_ip)
         
         # Enhanced metadata with security information
         security_metadata = {
@@ -161,7 +171,8 @@ async def chat(
         
         enhanced_metadata = {
             "retrieved_docs": retrieved,
-            "security_validation": security_metadata
+            "security_validation": security_metadata,
+            **geo_data
         }
         
         langfuse_context.update_current_trace(
