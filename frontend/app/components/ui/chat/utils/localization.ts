@@ -57,98 +57,6 @@ const SITE_INDEX_TRANSLATIONS: Record<string, SiteIndexTranslations> = {
 };
 
 /**
- * Simple language detection patterns for frontend use.
- * Based on common words and patterns in different languages.
- */
-const LANGUAGE_PATTERNS = {
-  es: [
-    /\b(el|la|los|las|un|una|de|del|en|con|por|para|que|no|sí|es|son|está|están|pero|como|muy|más|todo|todos|hacer|ver|poder|decir|ir|venir|dar|tener|ser|estar)\b/gi,
-    /\b(hola|gracias|por favor|disculpe|perdón|adiós|bueno|malo|grande|pequeño|nuevo|viejo)\b/gi,
-    /[ñáéíóúü]/gi,
-  ],
-  fr: [
-    /\b(le|la|les|un|une|de|du|des|en|dans|avec|pour|que|qui|ne|pas|est|sont|être|avoir|faire|aller|voir|savoir|pouvoir|vouloir|dire|donner|prendre)\b/gi,
-    /\b(bonjour|merci|s'il vous plaît|excusez-moi|pardon|au revoir|bon|mauvais|grand|petit|nouveau|vieux)\b/gi,
-    /[àâäçéèêëïîôùûüÿ]/gi,
-  ],
-  de: [
-    /\b(der|die|das|ein|eine|und|oder|aber|mit|von|zu|auf|für|in|ist|sind|haben|sein|werden|können|müssen|sollen|wollen|gehen|kommen|sehen|sagen|machen)\b/gi,
-    /\b(hallo|danke|bitte|entschuldigung|auf wiedersehen|gut|schlecht|groß|klein|neu|alt)\b/gi,
-    /[äöüß]/gi,
-  ],
-  it: [
-    /\b(il|la|lo|gli|le|un|una|di|del|della|in|con|per|che|non|è|sono|essere|avere|fare|andare|vedere|sapere|potere|volere|dire|dare|prendere)\b/gi,
-    /\b(ciao|grazie|prego|scusi|arrivederci|buono|cattivo|grande|piccolo|nuovo|vecchio)\b/gi,
-    /[àèéìíîòóù]/gi,
-  ],
-  pt: [
-    /\b(o|a|os|as|um|uma|de|do|da|em|com|por|para|que|não|é|são|ser|estar|ter|haver|fazer|ir|ver|saber|poder|querer|dizer|dar)\b/gi,
-    /\b(olá|obrigado|obrigada|por favor|desculpe|tchau|bom|ruim|grande|pequeno|novo|velho)\b/gi,
-    /[àáâãçéêíóôõú]/gi,
-  ],
-  ru: [
-    /[а-яё]/gi,
-    /\b(и|в|не|на|я|быть|что|он|с|а|как|это|она|по|но|они|к|у|его|то|из|за|её|до|вы|под|над|при|о|об|от|для)\b/gi,
-  ],
-  zh: [
-    /[\u4e00-\u9fff]/g,
-    /[，。！？；：""''（）【】]/g,
-  ],
-  ja: [
-    /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g,
-    /[。、！？]/g,
-  ],
-  ko: [
-    /[\uac00-\ud7af]/g,
-    /[，。！？]/g,
-  ],
-};
-
-/**
- * Simple client-side language detection based on text patterns.
- * This is a lightweight alternative to full language detection libraries.
- * @param text - Text to analyze for language detection
- * @param fallback - Fallback language code if detection fails
- * @returns Detected language code or fallback
- */
-export function detectLanguage(text: string, fallback = "en"): string {
-  if (!text || text.trim().length < 10) {
-    return fallback;
-  }
-
-  const cleanText = text.toLowerCase();
-  const scores: Record<string, number> = {};
-
-  // Initialize scores
-  Object.keys(LANGUAGE_PATTERNS).forEach(lang => {
-    scores[lang] = 0;
-  });
-
-  // Score each language based on pattern matches
-  Object.entries(LANGUAGE_PATTERNS).forEach(([lang, patterns]) => {
-    patterns.forEach(pattern => {
-      const matches = cleanText.match(pattern);
-      if (matches) {
-        scores[lang] += matches.length;
-      }
-    });
-  });
-
-  // Find the language with the highest score
-  let maxScore = 0;
-  let detectedLang = fallback;
-
-  Object.entries(scores).forEach(([lang, score]) => {
-    if (score > maxScore && score > 2) { // Minimum threshold
-      maxScore = score;
-      detectedLang = lang;
-    }
-  });
-
-  return detectedLang;
-}
-
-/**
  * Normalize language code to handle variants.
  * @param langCode - Raw language code (e.g., 'zh-cn', 'en-US')
  * @returns Normalized language code (e.g., 'zh', 'en')
@@ -181,18 +89,6 @@ export function getSiteIndexTranslations(
 
   // Return the translation if available, otherwise fall back to English
   return SITE_INDEX_TRANSLATIONS[normalizedCode] || SITE_INDEX_TRANSLATIONS.en;
-}
-
-/**
- * Get localized Site Index text by detecting language from text content.
- * @param text - Text to analyze for language detection
- * @returns Localized site index translations based on detected language
- */
-export function getSiteIndexTranslationsFromText(
-  text: string,
-): SiteIndexTranslations {
-  const detectedLanguage = detectLanguage(text);
-  return getSiteIndexTranslations(detectedLanguage);
 }
 
 /**

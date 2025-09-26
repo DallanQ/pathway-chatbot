@@ -38,10 +38,11 @@ class VercelStreamResponse(StreamingResponse):
         chat_data: ChatData,
         tokens: list,
         trace_id: str | None = None,
-        skip_suggestions: bool = False
+        skip_suggestions: bool = False,
+        user_language: str | None = None
     ):
         content = VercelStreamResponse.content_generator(
-            request, event_handler, response, chat_data, tokens, trace_id, skip_suggestions
+            request, event_handler, response, chat_data, tokens, trace_id, skip_suggestions, user_language
         )
         super().__init__(content=content)
 
@@ -54,7 +55,8 @@ class VercelStreamResponse(StreamingResponse):
         chat_data: ChatData,
         tokens: list,
         trace_id: str | None = None,
-        skip_suggestions: bool = False
+        skip_suggestions: bool = False,
+        user_language: str | None = None
     ):
         # Yield the text response
         async def _chat_response_generator():
@@ -85,6 +87,16 @@ class VercelStreamResponse(StreamingResponse):
 
             # the text_generator is the leading stream, once it's finished, also finish the event stream
             event_handler.is_done = True
+
+            # Yield user language for frontend localization
+            if user_language:
+                yield cls.convert_data(
+                    {
+                        "type": "user_language",
+                        "data": {"language": user_language},
+                        "trace_id": trace_id,
+                    }
+                )
 
             # Yield the source nodes
             yield cls.convert_data(

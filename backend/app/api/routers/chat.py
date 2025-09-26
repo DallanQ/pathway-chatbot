@@ -20,6 +20,7 @@ from app.api.routers.vercel_response import VercelStreamResponse
 from app.engine import get_chat_engine
 from app.engine.query_filter import generate_filters
 from app.security import InputValidator, SecurityValidationError, RiskLevel
+from app.utils.localization import LocalizationManager
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
 
@@ -58,6 +59,9 @@ async def chat(
         
         # If input is blocked, return the security message as a normal response
         if blocked_message:
+            # Detect user's language for consistent blocked response localization
+            user_language = LocalizationManager.detect_language(last_message_content)
+            
             # Log security event for monitoring
             logger.warning(
                 f"Security validation blocked suspicious input - "
@@ -98,7 +102,7 @@ async def chat(
             tokens = [blocked_message]
             
             return VercelStreamResponse(
-                request, EventCallbackHandler(), blocked_chat_response, data, tokens, skip_suggestions=True
+                request, EventCallbackHandler(), blocked_chat_response, data, tokens, skip_suggestions=True, user_language=user_language
             )
         
         # Sanitize allowed input as additional protection
@@ -143,6 +147,9 @@ async def chat(
             else last_message_content
         )
         
+        # Detect user's language for consistent frontend localization
+        user_language = LocalizationManager.detect_language(last_message_content)
+        
         # Enhanced metadata with security information
         security_metadata = {
             "input_validated": True,
@@ -161,7 +168,8 @@ async def chat(
         
         enhanced_metadata = {
             "retrieved_docs": retrieved,
-            "security_validation": security_metadata
+            "security_validation": security_metadata,
+            "user_language": user_language
         }
         
         langfuse_context.update_current_trace(
@@ -174,7 +182,7 @@ async def chat(
         logger.info(f"We got the trace id to be : {trace_id}")
 
         return VercelStreamResponse(
-            request, event_handler, response, data, tokens, trace_id=trace_id
+            request, event_handler, response, data, tokens, trace_id=trace_id, user_language=user_language
         )
         # return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:
@@ -281,9 +289,13 @@ async def chat_request(
         else:
             security_metadata["is_suspicious"] = False
         
+        # Detect user's language for consistent frontend localization
+        user_language = LocalizationManager.detect_language(last_message_content)
+        
         enhanced_metadata = {
             "nodes": retrieved,
-            "security_validation": security_metadata
+            "security_validation": security_metadata,
+            "user_language": user_language
         }
         
         # Set the input, output and metadata of Langfuse

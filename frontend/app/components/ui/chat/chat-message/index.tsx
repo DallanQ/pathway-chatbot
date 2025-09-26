@@ -4,7 +4,7 @@ import { Message } from "ai";
 import { Fragment } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
-import { getSiteIndexTranslationsFromText } from '../utils/localization';
+import { getSiteIndexTranslations } from '../utils/localization';
 import {
   ChatHandler,
   DocumentFileData,
@@ -14,6 +14,7 @@ import {
   MessageAnnotationType,
   SuggestedQuestionsData,
   ToolData,
+  UserLanguageData,
   getAnnotationData,
   getSourceAnnotationData,
 } from "../index";
@@ -68,6 +69,10 @@ function ChatMessageContent({
     annotations,
     MessageAnnotationType.SUGGESTED_QUESTIONS,
   );
+  const userLanguageData = getAnnotationData<UserLanguageData>(
+    annotations,
+    MessageAnnotationType.USER_LANGUAGE,
+  );
 
   const contents: ContentDisplayConfig[] = [
     {
@@ -111,8 +116,9 @@ function ChatMessageContent({
     {
       order: 5,
       component: sourceData[0] ? (() => {
-        // Get localized site index message based on detected language from AI response
-        const siteIndexTranslations = getSiteIndexTranslationsFromText(message.content);
+        // Get localized site index message using user's language from backend
+        const userLanguage = userLanguageData[0]?.language || 'en';
+        const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
         
         return (
           <p>
