@@ -28,7 +28,7 @@ const SITE_INDEX_TRANSLATIONS: Record<string, SiteIndexTranslations> = {
   },
   de: {
     text: "Falls ich Ihnen nicht die benötigten Informationen geben konnte, versuchen Sie, Ihr Thema im Site-Index der Missionsdienste zu suchen.",
-    linkText: "Site-Index",
+    linkText: "Seitenindex",
   },
   it: {
     text: "Se non sono riuscito a darti le informazioni di cui avevi bisogno, prova a cercare il tuo argomento nell'Indice del Sito dei Servizi Missionari.",
