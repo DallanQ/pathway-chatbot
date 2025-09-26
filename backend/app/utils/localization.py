@@ -189,10 +189,44 @@ class LocalizationManager:
             clean_text = re.sub(r'[<>\[\]{}|]', ' ', text)
             clean_text = re.sub(r'\s+', ' ', clean_text).strip()
             
-            # Need sufficient text for reliable detection
-            if len(clean_text) < 10:
-                logger.info(f"Text too short ({len(clean_text)} chars) for reliable language detection, using fallback")
-                return fallback
+            # More robust requirements for reliable language detection
+            word_count = len(clean_text.split())
+            char_count = len(clean_text)
+            
+            # Need sufficient text AND words for reliable detection  
+            if char_count < 25 or word_count < 5:
+                # For very short text, check for obvious non-English patterns first
+                foreign_patterns = [
+                    r'\b(schreibe|geschichte|über|eine|figur)\b',  # German
+                    r'\b(écris|histoire|sur|une)\b',  # French
+                    r'\b(escribe|historia|sobre|una)\b',  # Spanish
+                    r'\b(напиши|история|персонаже)\b',  # Russian
+                ]
+                
+                has_foreign_indicators = any(re.search(pattern, clean_text, re.IGNORECASE) 
+                                           for pattern in foreign_patterns)
+                
+                if has_foreign_indicators:
+                    logger.info("Foreign language indicators detected in short text, attempting detection")
+                    # Continue with detection for foreign languages
+                else:
+                    logger.info(f"Short English-like text ({char_count} chars, {word_count} words), using fallback")
+                    return fallback
+            
+            # Additional English pattern check for ambiguous cases
+            english_patterns = [
+                r'\b(when|what|where|why|how|who|is|are|can|could|would|will|do|does|did)\b',
+                r'\b(the|a|an|and|or|but|in|on|at|to|for|of|with|by)\b',
+                r'\b(I|you|he|she|it|we|they|me|him|her|us|them)\b',
+                r'\b(this|that|these|those|here|there|now|then)\b'
+            ]
+            
+            english_indicators = sum(1 for pattern in english_patterns if re.search(pattern, clean_text, re.IGNORECASE))
+            
+            # For short text with strong English indicators, prefer English
+            if char_count < 50 and word_count < 8 and english_indicators >= 2:
+                logger.info(f"Strong English indicators in short text ({english_indicators} patterns), using English")
+                return 'en'
             
             detected_lang = detect(clean_text)
             
