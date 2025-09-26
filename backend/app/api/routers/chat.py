@@ -98,7 +98,7 @@ async def chat(
             tokens = [blocked_message]
             
             return VercelStreamResponse(
-                request, EventCallbackHandler(), blocked_chat_response, data, tokens
+                request, EventCallbackHandler(), blocked_chat_response, data, tokens, skip_suggestions=True
             )
         
         # Sanitize allowed input as additional protection

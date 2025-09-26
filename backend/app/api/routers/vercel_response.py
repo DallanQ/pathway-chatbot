@@ -37,10 +37,11 @@ class VercelStreamResponse(StreamingResponse):
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
         tokens: list,
-        trace_id: str | None = None
+        trace_id: str | None = None,
+        skip_suggestions: bool = False
     ):
         content = VercelStreamResponse.content_generator(
-            request, event_handler, response, chat_data, tokens, trace_id
+            request, event_handler, response, chat_data, tokens, trace_id, skip_suggestions
         )
         super().__init__(content=content)
 
@@ -52,7 +53,8 @@ class VercelStreamResponse(StreamingResponse):
         response: StreamingAgentChatResponse,
         chat_data: ChatData,
         tokens: list,
-        trace_id: str | None = None
+        trace_id: str | None = None,
+        skip_suggestions: bool = False
     ):
         # Yield the text response
         async def _chat_response_generator():
@@ -63,22 +65,23 @@ class VercelStreamResponse(StreamingResponse):
                 yield VercelStreamResponse.convert_text(token)
 
             
-            # Generate questions that user might interested to
-            conversation = chat_data.messages + [
-                Message(role="assistant", content=final_response, trace_id=trace_id)
-                # Message(role="assistant", content=final_response)
-            ]
-            questions = await NextQuestionSuggestion.suggest_next_questions(
-                conversation
-            )
-            if len(questions) > 0:
-                yield VercelStreamResponse.convert_data(
-                    {
-                        "type": "suggested_questions",
-                        "data": questions,
-                        "trace_id": trace_id
-                    }
+            # Generate questions that user might interested to (skip for security-blocked responses)
+            if not skip_suggestions:
+                conversation = chat_data.messages + [
+                    Message(role="assistant", content=final_response, trace_id=trace_id)
+                    # Message(role="assistant", content=final_response)
+                ]
+                questions = await NextQuestionSuggestion.suggest_next_questions(
+                    conversation
                 )
+                if len(questions) > 0:
+                    yield VercelStreamResponse.convert_data(
+                        {
+                            "type": "suggested_questions",
+                            "data": questions,
+                            "trace_id": trace_id
+                        }
+                    )
 
             # the text_generator is the leading stream, once it's finished, also finish the event stream
             event_handler.is_done = True

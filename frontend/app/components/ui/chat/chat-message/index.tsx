@@ -4,6 +4,7 @@ import { Message } from "ai";
 import { Fragment } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
+import { getSiteIndexTranslationsFromText } from '../utils/localization';
 import {
   ChatHandler,
   DocumentFileData,
@@ -96,30 +97,37 @@ function ChatMessageContent({
     },
     {
       order: 3,
-      component: sourceData[0] 
-        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-        && !message.content.includes("Sorry, I don't know."))
-        ? <ChatSources data={sourceData[0]} />
-        : null,
+      component: sourceData[0] ? <ChatSources data={sourceData[0]} /> : null,
     },
     {
       order: 4,
-      component: suggestedQuestionsData[0] 
-      && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-      && !message.content.includes("Sorry, I don't know."))
-      ? (
+      component: suggestedQuestionsData[0] ? (
         <SuggestedQuestions
           questions={suggestedQuestionsData[0]}
           append={append}
         />
-
       ) : null,
     },
     {
       order: 5,
-      component: sourceData[0] ? <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 hover:underline">Site Index</a></p> : null,
+      component: sourceData[0] ? (() => {
+        // Get localized site index message based on detected language from AI response
+        const siteIndexTranslations = getSiteIndexTranslationsFromText(message.content);
+        
+        return (
+          <p>
+            {siteIndexTranslations.text}{' '}
+            <a 
+              href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              {siteIndexTranslations.linkText}
+            </a>
+          </p>
+        );
+      })() : null,
     }
   ];
 
