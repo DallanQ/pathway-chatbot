@@ -182,7 +182,7 @@ async def chat(
         logger.info(f"We got the trace id to be : {trace_id}")
 
         return VercelStreamResponse(
-            request, event_handler, response, data, tokens, trace_id=trace_id, user_language=user_language
+            request, event_handler, response, data, tokens, trace_id=trace_id, user_language=user_language, skip_suggestions=is_suspicious
         )
         # return VercelStreamResponse(request, event_handler, response, data, tokens)
     except Exception as e:

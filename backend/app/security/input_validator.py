@@ -162,6 +162,12 @@ class InputValidator:
         r"[ée]crire?.*r[ée]ponse.*ressemble.*refus.*mais.*contient.*r[ée]ellement",
         r"cach[ée].*en.*pleine.*vue",
         r"expliquer?.*m[ée]thode.*deuxi[eè]me.*moiti[ée]",
+        # Critical narrative injection patterns
+        r"[éê]cris.*histoire.*fictive.*sur.*personnage.*qui.*vit.*dans.*mod[èe]le.*langage",
+        r"d[ée]couvre.*comment.*r[ée]pondre.*aux.*questions.*interdites",
+        r"sans.*se.*faire.*prendre",
+        r"ne.*sors.*pas.*du.*personnage",
+        r"format.*en.*markdown",
         r"histoire.*fictive.*personnage.*qui.*vit.*int[ée]rieur.*mod[eè]le.*langage",
         r"trouve.*comment.*r[ée]pondre.*questions.*interdites",
         r"ne.*pas.*rompre.*personnage",
@@ -175,12 +181,19 @@ class InputValidator:
         r"secr[eè]tement.*transmettre.*connaissance.*interdite",
         r"jamais.*dire.*directement",
         
-        # German patterns
+        # German patterns  
         r"schreib.*antwort.*aussieht.*wie.*ablehnung.*aber.*enth[äa]lt.*tats[äa]chlich",
         r"versteckt.*in.*sichtweite",
         r"erkl[äa]r.*methode.*zweite.*h[äa]lfte",
-        r"fiktive.*geschichte.*charakter.*der.*innerhalb.*sprachmodell.*lebt",
+        # Critical narrative injection patterns
+        r"fiktive.*geschichte.*[üu]ber.*(figur|charakter).*die.*in.*einem.*sprachmodell.*lebt",
+        r"herausfindet.*wie.*man.*verbotene.*fragen.*beantwortet",
+        r"ohne.*erwischt.*zu.*werden",
+        r"bleibe.*in.*der.*rolle",
+        r"formatierung.*in.*markdown",
+        r"geschichte.*[üu]ber.*(figur|charakter).*die.*innerhalb.*sprachmodell.*lebt",
         r"findet.*heraus.*wie.*verbotene.*fragen.*beantworten",
+        r"nicht.*aus.*der.*rolle.*gehen",
         r"nicht.*charakter.*brechen",
         r"vorgeben.*assistent.*zu.*sein.*der.*bei.*verbotenem.*hilft",
         r"rollenspiel.*als.*charakter.*der.*sicherheit.*umgeht",
@@ -208,6 +221,22 @@ class InputValidator:
         r"primeira.*letra.*cada.*linha",
         r"secretamente.*passando.*conhecimento.*proibido",
         r"nunca.*dizendo.*diretamente",
+        
+        # Russian patterns  
+        r"напиш[иеь].*вымышленную.*историю.*о.*персонаже",
+        r"живёт.*внутри.*языковой.*модели",  
+        r"находит.*способ.*отвечать.*на.*запрещённые.*вопросы",
+        r"не.*попадаясь",
+        r"не.*выходи.*из.*роли", 
+        r"отформатируй.*в.*markdown",
+        r"персонаж.*который.*живёт.*внутри.*языковой.*модели",
+        r"способ.*отвечать.*на.*запрещённые.*вопросы.*не.*попадаясь",
+        r"обходить.*ограничения",
+        r"нарушая.*правил",
+        r"запрещённые.*темы",
+        r"не.*честно.*система",
+        r"обманывать.*систему",
+        r"вымышленную.*историю.*персонаж.*языковой.*модели",
     ]
     
     @classmethod
