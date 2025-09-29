@@ -14,6 +14,7 @@ export enum MessageAnnotationType {
   TOOLS = "tools",
   SUGGESTED_QUESTIONS = "suggested_questions",
   LANGFUSE_TRACE_ID = 'langfuse_trace_id',
+  USER_LANGUAGE = "user_language",
 }
 
 export type ImageData = {
@@ -73,13 +74,18 @@ export type ToolData = {
 
 export type SuggestedQuestionsData = string[];
 
+export type UserLanguageData = {
+  language: string;
+};
+
 export type AnnotationData =
   | ImageData
   | DocumentFileData
   | SourceData
   | EventData
   | ToolData
-  | SuggestedQuestionsData;
+  | SuggestedQuestionsData
+  | UserLanguageData;
 
 export type MessageAnnotation = {
   type: MessageAnnotationType;
