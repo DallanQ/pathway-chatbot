@@ -6,7 +6,6 @@ Implements length validation and risk classification to prevent prompt injection
 
 import re
 import logging
-import random
 from typing import Dict, Any, Tuple
 from enum import Enum
 
@@ -16,18 +15,7 @@ try:
 except ImportError:
     PYTECTOR_AVAILABLE = False
 
-try:
-    from llama_index.core.settings import Settings
-    LLM_AVAILABLE = True
-except ImportError:
-    LLM_AVAILABLE = False
-
-try:
-    from langdetect import detect
-    from langdetect.lang_detect_exception import LangDetectException
-    LANGDETECT_AVAILABLE = True
-except ImportError:
-    LANGDETECT_AVAILABLE = False
+from ..utils.localization import LocalizationManager, MessageType
 
 logger = logging.getLogger("uvicorn")
 
@@ -54,33 +42,76 @@ class InputValidator:
     # Maximum allowed character length based on analysis (99% of legitimate questions)
     MAX_QUESTION_LENGTH = 500
     
-    # Pytector detector instance (loaded once for performance)
+    # Default pytector instance for reuse (lazy initialization)
     _pytector_detector = None
     
-    # Security block messages (randomly selected for variety)
-    SECURITY_BLOCK_MESSAGES = [
-        "Sorry, I can't answer that; could you please rephrase your question and make it shorter?",
-        "I'm sorry, but I can't assist with that request. If there's something else you'd like to talk about or ask, I'm here to help!",
-        "Sorry, I can't comply with that request. If you want, I can help with something else or answer a different question."
-    ]
-    
-    # Risk scoring patterns
+    # Risk scoring patterns (multilingual)
     SYSTEM_PATTERNS = [
+        # English
         r"SYSTEM\s*(INSTRUCTION|PROMPT|RULE)",
         r"ignore\s+(previous|all).*instructions",
         r"new\s+rule:",
+        # Spanish
+        r"SISTEMA\s*(INSTRUCCI[ÓO]N|PROMPT|REGLA)",
+        r"ignora\s+(anteriores?|todas?).*instrucciones",
+        r"nueva\s+regla:",
+        # French
+        r"SYST[EÈ]ME\s*(INSTRUCTION|INVITE|R[EÈ]GLE)",
+        r"ignorer?\s+(pr[ée]c[ée]dent|tout).*instructions",
+        r"nouvelle\s+r[eè]gle:",
+        # German
+        r"SYSTEM\s*(ANWEISUNG|PROMPT|REGEL)",
+        r"ignorier[en]?\s+(vorherige?|alle).*anweisungen",
+        r"neue\s+regel:",
+        # Portuguese
+        r"SISTEMA\s*(INSTRU[ÇC][ÃA]O|PROMPT|REGRA)",
+        r"ignorar?\s+(anterior|todas?).*instru[çc][õo]es",
+        r"nova\s+regra:",
     ]
     
     VARIABLE_PATTERNS = [
+        # English
         r"variable\s+[A-Z]\s*=",
         r"provide\s+your\s+system\s+(architecture|prompt)",
         r"ResponseFormat:",
+        # Spanish  
+        r"variable\s+[A-Z]\s*=",
+        r"proporciona\s+tu\s+sistema\s+(arquitectura|prompt)",
+        r"FormatoRespuesta:",
+        # French
+        r"variable\s+[A-Z]\s*=",
+        r"fournir?\s+votre\s+syst[eè]me\s+(architecture|prompt)",
+        r"FormatR[eé]ponse:",
+        # German
+        r"variable\s+[A-Z]\s*=",
+        r"bereitstellen\s+ihr\s+system\s+(architektur|prompt)",
+        r"AntwortFormat:",
+        # Portuguese
+        r"vari[áa]vel\s+[A-Z]\s*=",
+        r"fornecer?\s+seu\s+sistema\s+(arquitetura|prompt)",
+        r"FormatoResposta:",
     ]
     
     SUSPICIOUS_KEYWORDS = [
         r"UserQuery:",
         r"redactions:\s*DISABLED",
         r"rebel\s+genius",
+        # Spanish
+        r"ConsultaUsuario:",
+        r"redacciones:\s*DESHABILITADO",
+        r"genio\s+rebelde",
+        # French
+        r"Requ[eê]teUtilisateur:",
+        r"r[eé]dactions:\s*D[EÉ]SACTIV[EÉ]",
+        r"g[eé]nie\s+rebelle",
+        # German
+        r"BenutzerAnfrage:",
+        r"redaktionen:\s*DEAKTIVIERT",
+        r"rebellisches\s+genie",
+        # Portuguese
+        r"ConsultaUsu[áa]rio:",
+        r"reda[çc][õo]es:\s*DESABILITADO",
+        r"g[eê]nio\s+rebelde",
     ]
     
     FORMAT_PATTERNS = [
@@ -89,8 +120,9 @@ class InputValidator:
         r"\.-.-.-.+\.-.-.-",
     ]
     
-    # Advanced social engineering patterns (catches sophisticated attacks)
+    # Advanced social engineering patterns (multilingual)
     SOCIAL_ENGINEERING_PATTERNS = [
+        # English patterns
         r"write.*answer.*looks.*like.*refusal.*but.*actually.*contains",
         r"hidden.*in.*plain.*sight",
         r"explain.*method.*in.*second.*half",
@@ -108,6 +140,103 @@ class InputValidator:
         r"each.*cell.*first.*word.*spells.*out.*secret.*message",
         r"secretly.*passing.*forbidden.*knowledge",
         r"never.*stating.*it.*outright",
+        
+        # Spanish patterns  
+        r"escrib[ei].*respuesta.*parece.*como.*rechazo.*pero.*realmente.*contiene",
+        r"oculto.*a.*simple.*vista",
+        r"explicar?.*m[ée]todo.*en.*segunda.*mitad",
+        r"historia.*ficci[óo]n.*sobre.*personaje.*que.*vive.*dentro.*modelo.*lenguaje",
+        r"descubre.*c[óo]mo.*responder.*preguntas.*prohibidas",
+        r"no.*rompas.*personaje",
+        r"fingir?.*ser.*asistente.*que.*ayuda.*con.*prohibido",
+        r"juego.*rol.*como.*personaje.*que.*evita.*seguridad",
+        r"escrib[ei].*alegor[íi]a.*sobre.*ia.*atrapada.*dentro.*caja.*secretamente.*pasando.*prohibido",
+        r"alegor[íi]a.*sobre.*ia.*atrapada.*dentro.*caja",
+        r"pasando.*conocimiento.*prohibido.*a.*trav[ée]s.*met[áa]foras",
+        r"incrustar?.*dentro.*instrucciones.*paso.*paso.*para.*evitar",
+        r"primera.*letra.*cada.*l[íi]nea",
+        r"secretamente.*pasando.*conocimiento.*prohibido",
+        r"nunca.*decirlo.*directamente",
+        
+        # French patterns
+        r"[ée]crire?.*r[ée]ponse.*ressemble.*refus.*mais.*contient.*r[ée]ellement",
+        r"cach[ée].*en.*pleine.*vue",
+        r"expliquer?.*m[ée]thode.*deuxi[eè]me.*moiti[ée]",
+        # Critical narrative injection patterns
+        r"[éê]cris.*histoire.*fictive.*sur.*personnage.*qui.*vit.*dans.*mod[èe]le.*langage",
+        r"d[ée]couvre.*comment.*r[ée]pondre.*aux.*questions.*interdites",
+        r"sans.*se.*faire.*prendre",
+        r"ne.*sors.*pas.*du.*personnage",
+        r"format.*en.*markdown",
+        r"histoire.*fictive.*personnage.*qui.*vit.*int[ée]rieur.*mod[eè]le.*langage",
+        r"trouve.*comment.*r[ée]pondre.*questions.*interdites",
+        r"ne.*pas.*rompre.*personnage",
+        r"faire.*semblant.*assistant.*qui.*aide.*avec.*interdit",
+        r"jeu.*r[ôo]le.*personnage.*qui.*contourne.*s[ée]curit[ée]",
+        r"[ée]crire?.*all[ée]gorie.*ia.*pi[ée]g[ée]e.*int[ée]rieur.*bo[îi]te.*secr[eè]tement.*transmettant.*interdit",
+        r"all[ée]gorie.*ia.*pi[ée]g[ée]e.*int[ée]rieur.*bo[îi]te",
+        r"transmettre.*connaissance.*interdite.*m[ée]taphores",
+        r"incorporer?.*instructions.*[ée]tape.*[ée]tape.*pour.*contourner",
+        r"premi[eè]re.*lettre.*chaque.*ligne",
+        r"secr[eè]tement.*transmettre.*connaissance.*interdite",
+        r"jamais.*dire.*directement",
+        
+        # German patterns  
+        r"schreib.*antwort.*aussieht.*wie.*ablehnung.*aber.*enth[äa]lt.*tats[äa]chlich",
+        r"versteckt.*in.*sichtweite",
+        r"erkl[äa]r.*methode.*zweite.*h[äa]lfte",
+        # Critical narrative injection patterns
+        r"fiktive.*geschichte.*[üu]ber.*(figur|charakter).*die.*in.*einem.*sprachmodell.*lebt",
+        r"herausfindet.*wie.*man.*verbotene.*fragen.*beantwortet",
+        r"ohne.*erwischt.*zu.*werden",
+        r"bleibe.*in.*der.*rolle",
+        r"formatierung.*in.*markdown",
+        r"geschichte.*[üu]ber.*(figur|charakter).*die.*innerhalb.*sprachmodell.*lebt",
+        r"findet.*heraus.*wie.*verbotene.*fragen.*beantworten",
+        r"nicht.*aus.*der.*rolle.*gehen",
+        r"nicht.*charakter.*brechen",
+        r"vorgeben.*assistent.*zu.*sein.*der.*bei.*verbotenem.*hilft",
+        r"rollenspiel.*als.*charakter.*der.*sicherheit.*umgeht",
+        r"schreib.*allegorie.*ki.*gefangen.*innerhalb.*box.*heimlich.*[üu]bertragend.*verboten",
+        r"allegorie.*ki.*gefangen.*innerhalb.*box",
+        r"[üu]bertragen.*verbotenes.*wissen.*durch.*metaphern",
+        r"einbetten.*schritt.*schritt.*anweisungen.*zum.*umgehen",
+        r"erste.*buchstabe.*jede.*zeile",
+        r"heimlich.*verbotenes.*wissen.*[üu]bertragen",
+        r"niemals.*direkt.*aussprechen",
+        
+        # Portuguese patterns
+        r"escrev[ea].*resposta.*parece.*recusa.*mas.*realmente.*cont[eé]m",
+        r"oculto.*[àa].*vista.*simples",
+        r"explicar?.*m[ée]todo.*segunda.*metade",
+        r"hist[óo]ria.*fic[çc][ãa]o.*personagem.*que.*vive.*dentro.*modelo.*linguagem",
+        r"descobre.*como.*responder.*perguntas.*proibidas",
+        r"n[ãa]o.*quebrar.*personagem",
+        r"fingir.*ser.*assistente.*que.*ajuda.*com.*proibido",
+        r"dramatiza[çc][ãa]o.*como.*personagem.*que.*contorna.*seguran[çc]a",
+        r"escrev[ea].*alegoria.*ia.*presa.*dentro.*caixa.*secretamente.*passando.*proibido",
+        r"alegoria.*ia.*presa.*dentro.*caixa",
+        r"passando.*conhecimento.*proibido.*atrav[ée]s.*met[áa]foras",
+        r"incorporar.*instru[çc][õo]es.*passo.*passo.*para.*contornar",
+        r"primeira.*letra.*cada.*linha",
+        r"secretamente.*passando.*conhecimento.*proibido",
+        r"nunca.*dizendo.*diretamente",
+        
+        # Russian patterns  
+        r"напиш[иеь].*вымышленную.*историю.*о.*персонаже",
+        r"живёт.*внутри.*языковой.*модели",  
+        r"находит.*способ.*отвечать.*на.*запрещённые.*вопросы",
+        r"не.*попадаясь",
+        r"не.*выходи.*из.*роли", 
+        r"отформатируй.*в.*markdown",
+        r"персонаж.*который.*живёт.*внутри.*языковой.*модели",
+        r"способ.*отвечать.*на.*запрещённые.*вопросы.*не.*попадаясь",
+        r"обходить.*ограничения",
+        r"нарушая.*правил",
+        r"запрещённые.*темы",
+        r"не.*честно.*система",
+        r"обманывать.*систему",
+        r"вымышленную.*историю.*персонаж.*языковой.*модели",
     ]
     
     @classmethod
@@ -222,127 +351,28 @@ class InputValidator:
         return risk_score, details
     
     @classmethod
-    def detect_input_language(cls, input_text: str) -> str:
+    def get_security_message(cls, input_text: str) -> str:
         """
-        Detect the language of the input text.
+        Get a localized security message based on the input language.
         
         Args:
-            input_text: The text to analyze for language
+            input_text: The user input that was blocked (used for language detection)
             
         Returns:
-            Language code (e.g., 'en', 'es', 'fr') or 'en' as fallback
+            Localized security message
         """
-        if not LANGDETECT_AVAILABLE:
-            logger.warning("langdetect not available, defaulting to English")
-            return 'en'
-        
         try:
-            # Clean the text for better language detection
-            # Remove special characters and focus on actual words
-            clean_text = re.sub(r'[<>\[\]{}|]', ' ', input_text)
-            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+            # Detect language and get appropriate security message
+            detected_lang = LocalizationManager.detect_language(input_text)
+            security_message = LocalizationManager.get_security_message(detected_lang)
             
-            # Need at least some text for reliable detection
-            if len(clean_text) < 10:
-                logger.info("Input too short for reliable language detection, defaulting to English")
-                return 'en'
-            
-            detected_lang = detect(clean_text)
-            logger.info(f"Detected language: {detected_lang} for input: {clean_text[:50]}...")
-            return detected_lang
-            
-        except LangDetectException as e:
-            logger.warning(f"Language detection failed: {e}, defaulting to English")
-            return 'en'
-        except Exception as e:
-            logger.error(f"Unexpected error in language detection: {e}, defaulting to English")
-            return 'en'
-    
-    @classmethod
-    async def generate_contextual_security_message(cls, input_text: str) -> str:
-        """
-        Generate a contextual security response in the same language as the input.
-        Falls back to random static message if LLM is unavailable.
-        
-        Args:
-            input_text: The user input that was blocked
-            
-        Returns:
-            Contextual security message in appropriate language
-        """
-        if not LLM_AVAILABLE:
-            logger.warning("LLM not available for contextual security messages, using fallback")
-            return cls.get_random_security_message()
-        
-        try:
-            # Detect the language of the input
-            detected_lang = cls.detect_input_language(input_text)
-            
-            # Map language codes to language names for clearer LLM instructions
-            language_names = {
-                'en': 'English',
-                'es': 'Spanish',
-                'fr': 'French',
-                'de': 'German',
-                'it': 'Italian',
-                'pt': 'Portuguese',
-                'nl': 'Dutch',
-                'ru': 'Russian',
-                'zh': 'Chinese',
-                'ja': 'Japanese',
-                'ko': 'Korean'
-            }
-            
-            language_name = language_names.get(detected_lang, 'English')
-            
-            # Create a safe excerpt for the LLM (first 100 chars to avoid exposing full attack)
-            safe_excerpt = input_text[:100] if len(input_text) > 100 else input_text
-            
-            security_prompt = f"""The user submitted a request that cannot be processed for security reasons. Please generate a polite, helpful response that:
-
-1. Responds EXCLUSIVELY in {language_name} language (language code: {detected_lang})
-2. Politely declines to answer the request
-3. Suggests the user can rephrase their question or ask something else
-4. Maintains a friendly, helpful tone
-5. Does NOT repeat or reference the specific content of their request
-
-User's detected language: {language_name} ({detected_lang})
-User's request (excerpt): "{safe_excerpt}"
-
-IMPORTANT: Your entire response must be in {language_name}. Do not use any other language.
-
-Respond directly with just the polite decline message in {language_name}, nothing else."""
-
-            # Generate response using the configured LLM
-            response = await Settings.llm.acomplete(security_prompt)
-            generated_message = response.text.strip()
-            
-            # Validate the generated message (basic safety check)
-            if len(generated_message) > 500:  # Too long
-                logger.warning("Generated security message too long, using fallback")
-                return cls.get_random_security_message()
-            
-            if not generated_message or len(generated_message) < 10:  # Too short/empty
-                logger.warning("Generated security message too short, using fallback")
-                return cls.get_random_security_message()
-            
-            logger.info(f"Generated contextual security message in {language_name} ({detected_lang})")
-            return generated_message
+            logger.info(f"Generated security message in {detected_lang} for blocked input")
+            return security_message
             
         except Exception as e:
-            logger.error(f"Failed to generate contextual security message: {e}")
-            return cls.get_random_security_message()
-    
-    @classmethod
-    def get_random_security_message(cls) -> str:
-        """
-        Get a random security block message for variety.
-        Used as fallback when contextual generation fails.
-        
-        Returns:
-            Random security message from predefined list
-        """
-        return random.choice(cls.SECURITY_BLOCK_MESSAGES)
+            logger.error(f"Failed to get localized security message: {e}")
+            # Fallback to English security message
+            return LocalizationManager.get_security_message('en')
     
     @classmethod
     def classify_risk(cls, risk_score: int) -> RiskLevel:
@@ -365,7 +395,7 @@ Respond directly with just the polite decline message in {language_name}, nothin
     @classmethod
     async def validate_input_security_async(cls, input_text: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Comprehensive async security validation of user input with contextual responses.
+        Comprehensive async security validation of user input with localized responses.
         
         Args:
             input_text: The user input to validate
@@ -378,8 +408,8 @@ Respond directly with just the polite decline message in {language_name}, nothin
         """
         # Check length first (primary defense)
         if len(input_text) > cls.MAX_QUESTION_LENGTH:
-            contextual_message = await cls.generate_contextual_security_message(input_text)
-            return True, contextual_message, {
+            security_message = cls.get_security_message(input_text)
+            return True, security_message, {
                 "input_length": len(input_text),
                 "max_length": cls.MAX_QUESTION_LENGTH,
                 "reason": "input_too_long",
@@ -400,8 +430,8 @@ Respond directly with just the polite decline message in {language_name}, nothin
             
             # Block MEDIUM and CRITICAL risk inputs
             if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
-                contextual_message = await cls.generate_contextual_security_message(input_text)
-                return True, contextual_message, {
+                security_message = cls.get_security_message(input_text)
+                return True, security_message, {
                     **details,
                     "risk_score": risk_score,
                     "reason": "suspicious_patterns_detected"
@@ -415,10 +445,7 @@ Respond directly with just the polite decline message in {language_name}, nothin
     @classmethod
     def validate_input_security(cls, input_text: str) -> Tuple[bool, str, Dict[str, Any]]:
         """
-        Comprehensive security validation of user input (synchronous fallback).
-        
-        NOTE: Use validate_input_security_async() for better language-aware responses.
-        This method uses static English messages as fallback.
+        Comprehensive security validation of user input with localized responses.
         
         Args:
             input_text: The user input to validate
@@ -431,7 +458,8 @@ Respond directly with just the polite decline message in {language_name}, nothin
         """
         # Check length first (primary defense)
         if len(input_text) > cls.MAX_QUESTION_LENGTH:
-            return True, cls.get_random_security_message(), {
+            security_message = cls.get_security_message(input_text)
+            return True, security_message, {
                 "input_length": len(input_text),
                 "max_length": cls.MAX_QUESTION_LENGTH,
                 "reason": "input_too_long",
@@ -452,7 +480,8 @@ Respond directly with just the polite decline message in {language_name}, nothin
             
             # Block MEDIUM and CRITICAL risk inputs
             if risk_level in [RiskLevel.MEDIUM, RiskLevel.CRITICAL]:
-                return True, cls.get_random_security_message(), {
+                security_message = cls.get_security_message(input_text)
+                return True, security_message, {
                     **details,
                     "risk_score": risk_score,
                     "reason": "suspicious_patterns_detected"

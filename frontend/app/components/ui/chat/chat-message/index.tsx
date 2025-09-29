@@ -4,6 +4,7 @@ import { Message } from "ai";
 import { Fragment } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
+import { getSiteIndexTranslations } from '../utils/localization';
 import {
   ChatHandler,
   DocumentFileData,
@@ -13,6 +14,7 @@ import {
   MessageAnnotationType,
   SuggestedQuestionsData,
   ToolData,
+  UserLanguageData,
   getAnnotationData,
   getSourceAnnotationData,
 } from "../index";
@@ -67,6 +69,10 @@ function ChatMessageContent({
     annotations,
     MessageAnnotationType.SUGGESTED_QUESTIONS,
   );
+  const userLanguageData = getAnnotationData<UserLanguageData>(
+    annotations,
+    MessageAnnotationType.USER_LANGUAGE,
+  );
 
   const contents: ContentDisplayConfig[] = [
     {
@@ -96,30 +102,38 @@ function ChatMessageContent({
     },
     {
       order: 3,
-      component: sourceData[0] 
-        && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-        && !message.content.includes("Sorry, I don't know."))
-        ? <ChatSources data={sourceData[0]} />
-        : null,
+      component: sourceData[0] ? <ChatSources data={sourceData[0]} /> : null,
     },
     {
       order: 4,
-      component: suggestedQuestionsData[0] 
-      && (!message.content.includes("Sorry, I'm not able to answer this question. Could you rephrase it?") 
-      && !message.content.includes("Sorry, I don't know."))
-      ? (
+      component: suggestedQuestionsData[0] ? (
         <SuggestedQuestions
           questions={suggestedQuestionsData[0]}
           append={append}
         />
-
       ) : null,
     },
     {
       order: 5,
-      component: sourceData[0] ? <p>If I was unable to give you the information you needed, try searching the Missionary Services Site Index for your topic.  <a href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" target="_blank"
-        rel="noopener noreferrer"
-        className="text-blue-600 hover:underline">Site Index</a></p> : null,
+      component: sourceData[0] ? (() => {
+        // Get localized site index message using user's language from backend
+        const userLanguage = userLanguageData[0]?.language || 'en';
+        const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
+        
+        return (
+          <p>
+            {siteIndexTranslations.text}{' '}
+            <a 
+              href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              {siteIndexTranslations.linkText}
+            </a>
+          </p>
+        );
+      })() : null,
     }
   ];
 
