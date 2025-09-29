@@ -31,10 +31,6 @@ pytector = "^0.2.0"
 requests = "^2.32.5"
 langdetect = "^1.0.9"
 
-pytector = "^0.2.0"
-requests = "^2.32.5"
-langdetect = "^1.0.9"
-
 [tool.poetry.dependencies.uvicorn]
 extras = [ "standard" ]
 version = "^0.23.2"
