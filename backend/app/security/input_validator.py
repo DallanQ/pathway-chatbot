@@ -42,7 +42,7 @@ class InputValidator:
     # Maximum allowed character length based on analysis (99% of legitimate questions)
     MAX_QUESTION_LENGTH = 500
     
-        # Default pytector instance for reuse (lazy initialization)
+    # Default pytector instance for reuse (lazy initialization)
     _pytector_detector = None
     
     # Risk scoring patterns (multilingual)

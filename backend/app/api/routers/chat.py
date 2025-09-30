@@ -23,6 +23,7 @@ from app.security import InputValidator, SecurityValidationError, RiskLevel
 from app.utils.localization import LocalizationManager
 from langfuse.decorators import langfuse_context, observe
 from app.langfuse import langfuse
+from app.utils.geo_ip import get_geo_data
 
 chat_router = r = APIRouter()
 
@@ -146,6 +147,8 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
+        client_ip = request.client.host
+        geo_data = await get_geo_data(client_ip)
         
         # Detect user's language for consistent frontend localization
         user_language = LocalizationManager.detect_language(last_message_content)
@@ -169,7 +172,8 @@ async def chat(
         enhanced_metadata = {
             "retrieved_docs": retrieved,
             "security_validation": security_metadata,
-            "user_language": user_language
+            "user_language": user_language,
+            **geo_data
         }
         
         langfuse_context.update_current_trace(
