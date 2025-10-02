@@ -147,7 +147,14 @@ async def chat(
             if role == "ACM"
             else last_message_content
         )
-        client_ip = request.client.host
+        
+        # Get real client IP from headers (handles proxies/load balancers)
+        # Render and other platforms put the real IP in X-Forwarded-For
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+        if "," in client_ip:
+            # X-Forwarded-For can contain multiple IPs, get the first (original client)
+            client_ip = client_ip.split(",")[0].strip()
+        
         geo_data = await get_geo_data(client_ip)
         
         # Detect user's language for consistent frontend localization
