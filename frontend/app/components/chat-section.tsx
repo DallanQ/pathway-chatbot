@@ -50,7 +50,7 @@ export default function ChatSection() {
   return (
     <div className="w-full h-full flex flex-col space-y-2">
       {/* Message Area */}
-      <div className="flex-grow overflow-y-auto flex flex-col justify-end bg-white rounded-lg shadow-xl">
+      <div className="flex-grow overflow-y-auto flex flex-col justify-end bg-white dark:bg-gray-800 rounded-lg shadow-xl">
         {messages.length === 0 && !isLoading ? (
           <DisclaimerMessage />
         ) : (
@@ -65,15 +65,15 @@ export default function ChatSection() {
       </div>
 
       {/* ACM Checkbox */}
-      <div className="flex items-center gap-2 text-xs border">
+      <div className="flex items-center gap-2 text-xs">
         <input
           id="acm-checkbox"
           type="checkbox"
           checked={isAcmChecked}
           onChange={(e) => setIsAcmChecked(e.target.checked)}
-          className="w-4 h-4 border-2 border-black accent-black cursor-pointer"
+          className="w-4 h-4 border-2 border-black dark:border-white accent-black dark:accent-white cursor-pointer"
         />
-        <label htmlFor="acm-checkbox" className="font-medium select-none cursor-pointer">
+        <label htmlFor="acm-checkbox" className="font-medium select-none cursor-pointer dark:text-white">
           Answers for ACMs Only
         </label>
       </div>

@@ -121,13 +121,13 @@ function ChatMessageContent({
         const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
         
         return (
-          <p>
+          <p className="dark:text-white">
             {siteIndexTranslations.text}{' '}
             <a 
               href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
+              className="text-blue-600 hover:underline dark:text-blue-400"
             >
               {siteIndexTranslations.linkText}
             </a>

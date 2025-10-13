@@ -79,7 +79,7 @@ export default function ChatInput(
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-xl bg-white p-4 shadow-xl space-y-4 shrink-0"
+      className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow-xl space-y-4 shrink-0"
     >
       {imageUrl && (
         <UploadImagePreview url={imageUrl} onRemove={() => setImageUrl(null)} />
@@ -100,7 +100,7 @@ export default function ChatInput(
           autoFocus
           name="message"
           placeholder="Ask a question"
-          className="flex-1"
+          className="flex-1 dark:text-white dark:placeholder-gray-400"
           value={props.input}
           onChange={props.handleInputChange}
         />
@@ -116,7 +116,7 @@ export default function ChatInput(
           props.setRequestData && (
             <LlamaCloudSelector setRequestData={props.setRequestData} />
           )}
-        <Button type="submit" disabled={props.isLoading || !props.input.trim()}>
+        <Button type="submit" variant="default" disabled={props.isLoading || !props.input.trim()}>
           Send
         </Button>
       </div>
