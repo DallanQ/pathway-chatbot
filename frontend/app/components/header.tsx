@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { HelpCircle } from "lucide-react";
 import { ThemeSwitcher } from "./theme-switcher";
 
 export default function Header() {
@@ -9,13 +10,15 @@ export default function Header() {
       <div className="flex items-center justify-between w-full relative">
         {/* Logo */}
         <div className="flex items-center z-10">
-          <Image
-            src="/pathway-horizontal-logo.png"
-            alt="BYU Pathway Logo"
-            width={140}
-            height={18}
-            className="h-[16px] sm:h-[18px] w-auto"
-          />
+          <a href="/" className="cursor-pointer">
+            <Image
+              src="/pathway-horizontal-logo.png"
+              alt="BYU Pathway Logo"
+              width={140}
+              height={18}
+              className="h-[16px] sm:h-[18px] w-auto"
+            />
+          </a>
         </div>
         
         {/* Title - centered */}
@@ -34,6 +37,7 @@ export default function Header() {
             rel="noopener noreferrer"
             className="hidden sm:flex items-center gap-1 px-4 py-2 rounded-full border border-black/50 text-[#646362] hover:bg-black/5 transition-colors"
           >
+            <HelpCircle className="h-4 w-4" />
             <span className="text-sm font-semibold">Help</span>
           </a>
           {/* Mobile Help - icon only */}
