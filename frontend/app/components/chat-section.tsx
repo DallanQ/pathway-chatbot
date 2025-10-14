@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "ai/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import DisclaimerMessage from "./disclaimer-message";
 import Greeting from "./greeting";
 import { ChatInput, ChatMessages } from "./ui/chat";
@@ -12,6 +12,8 @@ export default function ChatSection() {
   const [requestData, setRequestData] = useState<any>();
   const [isAcmChecked, setIsAcmChecked] = useState(false);
   const [hasStartedChat, setHasStartedChat] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
   const {
     messages,
     input,
@@ -22,6 +24,7 @@ export default function ChatSection() {
     stop,
     append,
     setInput,
+    setMessages,
   } = useChat({
     body: { data: requestData },
     api: `${backend}/api/chat`,
@@ -58,6 +61,13 @@ export default function ChatSection() {
   // Check if there are any messages
   const hasMessages = messages.length > 0;
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [messages.length, isLoading]);
+
   return (
     <div className="w-full h-full flex flex-col relative">
       {/* Empty state - centered */}
@@ -72,7 +82,10 @@ export default function ChatSection() {
 
       {/* Chat messages - takes remaining space */}
       {(hasStartedChat || hasMessages) && (
-        <div className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-24 pt-8">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto px-4 md:px-16 lg:px-24 pt-8"
+        >
           <div className="max-w-[640px] mx-auto">
             <ChatMessages
               messages={messages}
@@ -80,6 +93,7 @@ export default function ChatSection() {
               reload={reload}
               stop={stop}
               append={append}
+              setMessages={setMessages}
             />
           </div>
         </div>
@@ -101,6 +115,7 @@ export default function ChatSection() {
             messages={messages}
             append={append}
             setInput={setInput}
+            stop={stop}
             requestParams={{ params: requestData }}
             setRequestData={setRequestData}
             isAcmMode={isAcmChecked}

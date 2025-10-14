@@ -9,7 +9,7 @@ import { useClientConfig } from "./hooks/use-config";
 export default function ChatMessages(
   props: Pick<
     ChatHandler,
-    "messages" | "isLoading" | "reload" | "stop" | "append"
+    "messages" | "isLoading" | "reload" | "stop" | "append" | "setMessages"
   >,
 ) {
   const { backend } = useClientConfig();
@@ -69,6 +69,8 @@ export default function ChatMessages(
               append={props.append!}
               reload={props.reload}
               showReload={showReloadIcon}
+              messages={props.messages}
+              setMessages={props.setMessages}
             />
           );
         })}

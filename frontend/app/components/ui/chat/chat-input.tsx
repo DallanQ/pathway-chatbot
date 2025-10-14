@@ -22,6 +22,7 @@ export default function ChatInput(
     | "messages"
     | "setInput"
     | "append"
+    | "stop"
   > & {
     requestParams?: any;
     setRequestData?: React.Dispatch<any>;
@@ -105,7 +106,7 @@ export default function ChatInput(
             autoFocus
             name="message"
             placeholder={props.isAcmMode ? "Ask an ACM-related question" : "Ask a question"}
-            className="flex-1 bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
+            className="flex-1 bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-sm sm:text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: '#646362 transparent',
@@ -172,16 +173,31 @@ export default function ChatInput(
               props.setRequestData && (
                 <LlamaCloudSelector setRequestData={props.setRequestData} />
               )}
-            <Button 
-              type="submit" 
-              disabled={props.isLoading || !props.input.trim()}
-              className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2L7 9M14 2L9.5 14L7 9M14 2L2 6.5L7 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="sr-only">Send</span>
-            </Button>
+            {props.isLoading ? (
+              /* Stop Button when loading */
+              <Button 
+                type="button"
+                onClick={props.stop}
+                className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="4" width="8" height="8" fill="currentColor" rx="1"/>
+                </svg>
+                <span className="sr-only">Stop</span>
+              </Button>
+            ) : (
+              /* Send Button when not loading */
+              <Button 
+                type="submit" 
+                disabled={!props.input.trim()}
+                className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2L7 9M14 2L9.5 14L7 9M14 2L2 6.5L7 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="sr-only">Send</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>

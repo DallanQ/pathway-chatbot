@@ -1,7 +1,7 @@
-import { Check, Copy, RefreshCw } from "lucide-react";
+import { Check, Copy, RefreshCw, Pencil } from "lucide-react";
 
 import { Message } from "ai";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
 import { getSiteIndexTranslations } from '../utils/localization';
@@ -121,7 +121,7 @@ function ChatMessageContent({
         const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
         
         return (
-          <p className="dark:text-white">
+          <p className="dark:text-white text-sm sm:text-base mt-6">
             {siteIndexTranslations.text}{' '}
             <a 
               href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
@@ -156,27 +156,125 @@ export default function ChatMessage({
   append,
   reload,
   showReload,
+  messages,
+  setMessages,
 }: {
   chatMessage: Message;
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
   reload?: Pick<ChatHandler, "reload">["reload"];
   showReload?: boolean;
+  messages?: Message[];
+  setMessages?: Pick<ChatHandler, "setMessages">["setMessages"];
 }) {
 
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState("");
+  
   // look for an annotation with the trace_id
   const traceId = (chatMessage.annotations?.find(
     (annotation) => (annotation as MessageAnnotation)?.trace_id) as MessageAnnotation)?.trace_id || "";
   
   const isUser = chatMessage.role === "user";
+  
+  const handleEditClick = () => {
+    setEditedContent(chatMessage.content);
+    setIsEditing(true);
+  };
+  
+  const handleSaveEdit = () => {
+    const trimmedContent = editedContent.trim();
+    if (trimmedContent && messages && setMessages && append) {
+      // Find the index of the current message
+      const currentIndex = messages.findIndex(m => m.id === chatMessage.id);
+      
+      // Remove all messages after (and including) the current message
+      const updatedMessages = messages.slice(0, currentIndex);
+      setMessages(updatedMessages);
+      
+      // Submit the edited message as a new message
+      append({ role: "user", content: trimmedContent });
+    }
+    setIsEditing(false);
+    setEditedContent("");
+  };
+  
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedContent("");
+  };
     
   return (
     <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
       {/* User message - dark bubble on right */}
       {isUser && (
-        <div className="bg-[#242628] text-[#FCFCFC] px-4 sm:px-[17px] py-3 sm:py-[11px] rounded-[24px] rounded-br-[8px] max-w-[90%] sm:max-w-[576px] border border-[rgba(252,252,252,0.06)]">
-          <p className="text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] tracking-[-0.1px]">{chatMessage.content}</p>
+        <div className={`group flex flex-col items-end gap-2 ${isEditing ? 'w-full max-w-[90%] sm:max-w-[576px]' : ''}`}>
+          {isEditing ? (
+            /* Edit mode - inline textarea with full width */
+            <div className="w-full bg-[#1a1a1a] dark:bg-[#2a2a2a] border border-[rgba(252,252,252,0.1)] rounded-2xl p-4">
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus:outline-none text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] resize-none min-h-[50px] max-h-[200px]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSaveEdit();
+                  }
+                }}
+              />
+              <div className="flex items-center justify-end gap-3 mt-3">
+                <Button
+                  onClick={handleCancelEdit}
+                  variant="ghost"
+                  className="text-[#B5B5B5] hover:text-white text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  className="bg-white text-black hover:bg-gray-200 text-sm px-6"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Normal message display - hugs content */
+            <>
+              <div className="bg-[#242628] text-[#FCFCFC] px-4 sm:px-[17px] py-3 sm:py-[11px] rounded-[24px] rounded-br-[8px] max-w-[90%] sm:max-w-[576px] border border-[rgba(252,252,252,0.06)]">
+                <p className="text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] tracking-[-0.1px]">{chatMessage.content}</p>
+              </div>
+              
+              {/* Action buttons for user message - only visible on hover */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  onClick={handleEditClick}
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                  title="Edit"
+                >
+                  <Pencil className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                </Button>
+                <Button
+                  onClick={() => copyToClipboard(chatMessage.content)}
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                  title="Copy"
+                >
+                  {isCopied ? (
+                    <Check className="h-3.5 w-3.5 text-white dark:text-[#FCFCFC]" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
       
@@ -191,7 +289,7 @@ export default function ChatMessage({
           
           {/* Action buttons - inline after message content */}
           {!isLoading && (
-            <div className="flex items-center gap-1 mt-4">
+            <div className="flex items-center gap-1 mt-1 mb-4">
               <Button
                 onClick={() => copyToClipboard(chatMessage.content)}
                 size="icon"

@@ -14,7 +14,7 @@ export function SuggestedQuestions({
   return (
     showQuestions &&
     append !== undefined && (
-      <div className="flex flex-col space-y-2 ml-3">
+      <div className="flex flex-col space-y-2 ml-3 mt-6">
         {questions.map((question, index) => (
           <a
             key={index}
