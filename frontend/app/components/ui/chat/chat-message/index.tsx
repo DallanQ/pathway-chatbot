@@ -1,4 +1,4 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, RefreshCw } from "lucide-react";
 
 import { Message } from "ai";
 import { Fragment } from "react";
@@ -154,46 +154,73 @@ export default function ChatMessage({
   chatMessage,
   isLoading,
   append,
+  reload,
+  showReload,
 }: {
   chatMessage: Message;
   isLoading: boolean;
   append: Pick<ChatHandler, "append">["append"];
+  reload?: Pick<ChatHandler, "reload">["reload"];
+  showReload?: boolean;
 }) {
 
   const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
   // look for an annotation with the trace_id
   const traceId = (chatMessage.annotations?.find(
     (annotation) => (annotation as MessageAnnotation)?.trace_id) as MessageAnnotation)?.trace_id || "";
+  
+  const isUser = chatMessage.role === "user";
     
   return (
-    <div className="flex items-start gap-4 pr-5 pt-5">
-      <ChatAvatar role={chatMessage.role} />
-      <div className="group flex flex-1 justify-between gap-2">
-        <ChatMessageContent
-          message={chatMessage}
-          isLoading={isLoading}
-          append={append}
-        />
-        <div className="max-w-[10px] md:max-w-none">
-        <Button
-          onClick={() => copyToClipboard(chatMessage.content)}
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 opacity-0 group-hover:opacity-100"
-        >
-          {isCopied ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </Button>
-        {
-          chatMessage.role !== "user" && (
-            <UserFeedbackComponent traceId={traceId}/>
-          )
-        }
+    <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'}`}>
+      {/* User message - dark bubble on right */}
+      {isUser && (
+        <div className="bg-[#242628] text-[#FCFCFC] px-4 sm:px-[17px] py-3 sm:py-[11px] rounded-[24px] rounded-br-[8px] max-w-[90%] sm:max-w-[576px] border border-[rgba(252,252,252,0.06)]">
+          <p className="text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] tracking-[-0.1px]">{chatMessage.content}</p>
         </div>
-      </div>
+      )}
+      
+      {/* Bot message - left aligned with inline action icons */}
+      {!isUser && (
+        <div className="w-full max-w-[640px]">
+          <ChatMessageContent
+            message={chatMessage}
+            isLoading={isLoading}
+            append={append}
+          />
+          
+          {/* Action buttons - inline after message content */}
+          {!isLoading && (
+            <div className="flex items-center gap-1 mt-4">
+              <Button
+                onClick={() => copyToClipboard(chatMessage.content)}
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                title="Copy"
+              >
+                {isCopied ? (
+                  <Check className="h-4 w-4 text-white dark:text-[#FCFCFC]" />
+                ) : (
+                  <Copy className="h-4 w-4 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                )}
+              </Button>
+              <UserFeedbackComponent traceId={traceId}/>
+              {showReload && reload && (
+                <Button
+                  onClick={reload}
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                  title="Regenerate"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

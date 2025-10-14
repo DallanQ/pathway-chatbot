@@ -25,6 +25,9 @@ export default function ChatInput(
   > & {
     requestParams?: any;
     setRequestData?: React.Dispatch<any>;
+    isAcmMode?: boolean;
+    isAcmChecked?: boolean;
+    setIsAcmChecked?: (checked: boolean) => void;
   },
 ) {
   const {
@@ -79,7 +82,7 @@ export default function ChatInput(
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow-xl space-y-4 shrink-0"
+      className="w-full"
     >
       {imageUrl && (
         <UploadImagePreview url={imageUrl} onRemove={() => setImageUrl(null)} />
@@ -95,30 +98,92 @@ export default function ChatInput(
           ))}
         </div>
       )}
-      <div className="flex w-full items-start justify-between gap-4 ">
-        <Input
-          autoFocus
-          name="message"
-          placeholder="Ask a question"
-          className="flex-1 dark:text-white dark:placeholder-gray-400"
-          value={props.input}
-          onChange={props.handleInputChange}
-        />
-        {/* <FileUploader
-          onFileUpload={handleUploadFile}
-          onFileError={props.onFileError}
-          config={{
-            allowedExtensions: ALLOWED_EXTENSIONS,
-            disabled: props.isLoading,
-          }}
-        /> */}
-        {process.env.NEXT_PUBLIC_USE_LLAMACLOUD === "true" &&
-          props.setRequestData && (
-            <LlamaCloudSelector setRequestData={props.setRequestData} />
-          )}
-        <Button type="submit" variant="default" disabled={props.isLoading || !props.input.trim()}>
-          Send
-        </Button>
+      <div className="w-full bg-[#242628] rounded-3xl px-4 py-3 border border-[rgba(252,252,252,0.06)]">
+        {/* Top row - Text Input */}
+        <div className="relative flex items-center w-full mb-3">
+          <textarea
+            autoFocus
+            name="message"
+            placeholder={props.isAcmMode ? "Ask an ACM-related question" : "Ask a question"}
+            className="flex-1 bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#646362 transparent',
+            }}
+            value={props.input}
+            onChange={(e) => {
+              // Create a synthetic event that matches the expected type
+              const syntheticEvent = {
+                ...e,
+                target: e.target as any,
+                currentTarget: e.currentTarget as any,
+              };
+              props.handleInputChange(syntheticEvent as any);
+            }}
+            rows={1}
+            onInput={(e) => {
+              // Auto-resize textarea as user types
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+            }}
+            onKeyDown={(e) => {
+              // Submit on Enter, new line on Shift+Enter
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const form = e.currentTarget.form;
+                if (form) {
+                  form.requestSubmit();
+                }
+              }
+            }}
+          />
+        </div>
+        
+        {/* Bottom row - ACM Toggle and Send Button */}
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            {/* ACM Toggle Button */}
+            {props.setIsAcmChecked && (
+              <button
+                type="button"
+                onClick={() => props.setIsAcmChecked!(!props.isAcmChecked)}
+                className={`
+                  flex-shrink-0 px-3 py-1.5 rounded-full font-semibold text-xs transition-all
+                  ${props.isAcmChecked 
+                    ? 'bg-[#FFC328] text-[#454540]' 
+                    : 'bg-transparent border border-[#646362] text-[#B5B5B5]'
+                  }
+                `}
+              >
+                ACMs Only
+              </button>
+            )}
+            
+            {/* Placeholder for other icons */}
+            <div className="flex items-center gap-1">
+              {/* Add other icons here if needed */}
+            </div>
+          </div>
+          
+          {/* Send Button - Right side */}
+          <div className="flex items-center gap-2">
+            {process.env.NEXT_PUBLIC_USE_LLAMACLOUD === "true" &&
+              props.setRequestData && (
+                <LlamaCloudSelector setRequestData={props.setRequestData} />
+              )}
+            <Button 
+              type="submit" 
+              disabled={props.isLoading || !props.input.trim()}
+              className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2L7 9M14 2L9.5 14L7 9M14 2L2 6.5L7 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="sr-only">Send</span>
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

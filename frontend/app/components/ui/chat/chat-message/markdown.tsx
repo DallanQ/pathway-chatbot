@@ -81,7 +81,7 @@ export default function Markdown({
 
   return (
     <MemoizedReactMarkdown
-      className="prose dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 break-words custom-markdown"
+      className="prose dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 break-words custom-markdown text-[#F9F8F6] text-[15.75px] leading-[28px] tracking-[-0.1px]"
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeKatex as any]}
       components={{
