@@ -16,6 +16,7 @@ export interface ChatHandler {
   onFileUpload?: (file: File) => Promise<void>;
   onFileError?: (errMsg: string) => void;
   setInput?: (input: string) => void;
+  setMessages?: (messages: Message[]) => void;
   append?: (
     message: Message | Omit<Message, "id">,
     ops?: {
