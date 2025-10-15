@@ -1,6 +1,6 @@
-import { Check, Copy, FileText } from "lucide-react";
+import { Check, Copy, FileText, ChevronDown } from "lucide-react";
 import Image from "next/image";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "../../button";
 import { FileIcon } from "../../document-preview";
 import {
@@ -19,6 +19,8 @@ type Document = {
 };
 
 export function ChatSources({ data }: { data: SourceData }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const documents: Document[] = useMemo(() => {
     // group nodes by document (a document must have a URL)
     // Information source
@@ -47,22 +49,65 @@ export function ChatSources({ data }: { data: SourceData }) {
   });
 
   return (
-    <div className="space-y-2 text-sm">
-      <div className="font-semibold text-lg">Sources:</div>
-      <ul style={{ listStyleType: "disc", marginLeft: "10px" }} >
-        {sortedSources.map((node: SourceNode, index: number) => (
-          <li key={index} className="mb-2 md:mb-1">
+    <div className="mt-4">
+      {/* Reference badges with favicons - clickable to expand/collapse */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 bg-[#F0EEE6] dark:bg-[rgba(219,219,219,0.08)] border border-[rgba(31,30,29,0.12)] dark:border-[rgba(219,219,219,0.04)] rounded-full px-3 py-2 hover:bg-[#E9E7E1] dark:hover:bg-[rgba(219,219,219,0.12)] transition-colors"
+      >
+        {/* Favicon icons */}
+        <div className="flex items-center -space-x-2">
+          {sortedSources.slice(0, 3).map((node: SourceNode, index: number) => {
+            const domain = new URL(node.url).hostname;
+            return (
+              <div 
+                key={index}
+                className="w-4 h-4 rounded-full bg-white dark:bg-[#36383a] border border-[rgba(31,30,29,0.12)] dark:border-[#161618] overflow-hidden flex items-center justify-center"
+              >
+                <Image
+                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
+                  alt={domain}
+                  width={16}
+                  height={16}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            );
+          })}
+        </div>
+        <span className="text-[#3D3D3A] dark:text-[#FCFCFC] text-[13.781px] leading-[21px] tracking-[-0.1px]">
+          {sortedSources.length} references
+        </span>
+        <ChevronDown 
+          className={cn(
+            "w-4 h-4 text-[#73726C] dark:text-[#B5B5B5] transition-transform duration-300",
+            isExpanded && "rotate-180"
+          )}
+        />
+      </button>
+      
+      {/* Expandable list with smooth animation */}
+      <div 
+        className={cn(
+          "overflow-hidden transition-all duration-300 ease-in-out",
+          isExpanded ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
+        )}
+      >
+        <div className="space-y-1 pt-2">
+          {sortedSources.map((node: SourceNode, index: number) => (
             <a
+              key={index}
               href={node.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline break-all"
+              className="flex items-start gap-2 text-sm text-[#3D3D3A] dark:text-[#F9F8F6] py-1 group"
             >
-              {node.citation_node_id}. {node.url}
+              <span className="text-[#E18158] font-medium whitespace-nowrap flex-shrink-0">^{index + 1}</span>
+              <span className="break-all hover:underline">{node.url}</span>
             </a>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </div>
+      </div>
     </div>
   );
   
@@ -107,11 +152,11 @@ export function SourceNumberButton({
   return (
     <span
       className={cn(
-        "text-xs w-5 h-5 rounded-full bg-gray-100 inline-flex items-center justify-center",
+        "inline-flex items-center justify-center px-1.5 rounded-full bg-[rgba(225,129,88,0.12)] dark:bg-[#242628] text-[#C6613F] dark:text-[#E18158] text-[9px] leading-[14px] font-semibold align-super",
         className,
       )}
     >
-      {index + 1}
+      ^{index + 1}
     </span>
   );
 }

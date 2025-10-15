@@ -34,6 +34,18 @@
     --ring: 215 20.2% 65.1%;
 
     --radius: 0.5rem;
+    
+    /* Figma Design Colors - Light Mode */
+    --page-bg: 40 5% 98%; /* #FAF9F5 light gray background */
+    --header-bg: 45 100% 57%; /* #FFC328 Sunglow */
+    --greeting-text: 220 3% 24%; /* #3D3D3A Tuatara - dark text for light mode */
+    --chat-bg: 40 5% 98%; /* #FAF9F5 */
+    --user-bubble: 240 3% 16%; /* #242628 Shark */
+    --bot-text: 220 3% 24%; /* #3D3D3A - dark text for light mode */
+    --input-bg: 0 0% 100%; /* #FFFFFF white background */
+    --input-text: 220 3% 8%; /* #141413 Cod Gray - dark text */
+    --input-border: 220 3% 88%; /* Light border for input */
+    --reference-badge: 20 68% 61%; /* #E18158 */
   }
 
   .dark {
@@ -67,6 +79,17 @@
     --ring: 216 34% 17%;
 
     --radius: 0.5rem;
+    
+    /* Figma Design Colors - Dark Mode */
+    --page-bg: 220 3% 15%; /* #262624 Tuatara */
+    --header-bg: 45 100% 57%; /* #FFC328 Sunglow */
+    --greeting-text: 40 7% 76%; /* #C2C0B6 Cotton Seed */
+    --chat-bg: 220 3% 15%; /* #262624 */
+    --user-bubble: 240 3% 16%; /* #242628 Shark */
+    --bot-text: 40 5% 98%; /* #F9F8F6 Pampas */
+    --input-bg: 240 3% 16%; /* #242628 Shark */
+    --input-text: 0 0% 71%; /* #B5B5B5 Nobel */
+    --reference-badge: 20 68% 61%; /* #E18158 */
   }
 }
 
@@ -88,5 +111,23 @@
 
   .background-gradient {
     background: linear-gradient(to bottom right, #E8E8E8, #FFFFFF 60%);
+  }
+  
+  /* Custom slim scrollbar for textarea */
+  textarea::-webkit-scrollbar {
+    width: 3px;
+  }
+  
+  textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  textarea::-webkit-scrollbar-thumb {
+    background-color: #646362;
+    border-radius: 10px;
+  }
+  
+  textarea::-webkit-scrollbar-thumb:hover {
+    background-color: #7a7977;
   }
 }
