@@ -152,7 +152,7 @@ export function SourceNumberButton({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center px-2 rounded-full bg-[#F0EEE6] dark:bg-[#242628] text-[#E18158] text-[8px] leading-[13px] font-medium align-super",
+        "inline-flex items-center justify-center px-1.5 rounded-full bg-[rgba(225,129,88,0.12)] dark:bg-[#242628] text-[#C6613F] dark:text-[#E18158] text-[9px] leading-[14px] font-semibold align-super",
         className,
       )}
     >

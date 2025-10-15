@@ -229,13 +229,13 @@ export default function ChatMessage({
                 <Button
                   onClick={handleCancelEdit}
                   variant="ghost"
-                  className="text-[#73726C] dark:text-[#B5B5B5] hover:text-[#3D3D3A] dark:hover:text-white text-sm"
+                  className="text-[#73726C] dark:text-[#B5B5B5] bg-[#D1CFC2] hover:bg-[#B3B1A0] hover:text-[#3D3D3A] dark:text-[#3E3C33] dark:hover:text-white text-sm"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
-                  className="bg-[#FFC328] dark:bg-white text-white dark:text-black hover:bg-[#B5563A] dark:hover:bg-gray-200 text-sm px-6"
+                  className="bg-[#FFC328] dark:bg-white text-[#FF346] dark:text-black hover:bg-[#FFD255] dark:hover:bg-gray-200 text-sm px-6"
                 >
                   Save
                 </Button>
