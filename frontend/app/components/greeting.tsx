@@ -19,9 +19,12 @@ const WARM_TEXTS = [
 ];
 
 const STORAGE_KEY = "chatbot_greeting_data";
-const GREETING_VERSION = "2"; // Increment this when greeting logic changes
+const GREETING_VERSION = "2";
 
 export default function Greeting() {
+  const [greeting, setGreeting] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+
   const getTimeBasedGreeting = () => {
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 12) {
@@ -35,30 +38,17 @@ export default function Greeting() {
     }
   };
 
-  // Initialize greeting synchronously to avoid a flashed/incorrect greeting.
-  // Prefer stored greeting when valid; otherwise use a time-based greeting.
-  const [greeting, setGreeting] = useState<string>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data.version === GREETING_VERSION) {
-          // If stored and version matches, use it (even if slightly old).
-          return data.greeting;
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-    // Fallback to time-based greeting for initial render
-    return getTimeBasedGreeting();
-  });
+  const isWeekend = () => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+  };
 
   useEffect(() => {
+    setMounted(true);
+
     const shouldUpdateGreeting = (lastUpdated: number): boolean => {
       const now = Date.now();
       const timeDiff = now - lastUpdated;
-      // Random interval between 30 minutes (1800000ms) and 2 hours (7200000ms)
       const minInterval = 30 * 60 * 1000; // 30 minutes
       const maxInterval = 120 * 60 * 1000; // 2 hours
       const randomInterval = Math.random() * (maxInterval - minInterval) + minInterval;
@@ -69,38 +59,58 @@ export default function Greeting() {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         const now = Date.now();
+        const currentTimeGreeting = getTimeBasedGreeting();
 
         if (stored) {
           const data = JSON.parse(stored);
-          // Check version - if outdated, force refresh
+          
           if (data.version !== GREETING_VERSION) {
-            // Clear old data and continue to generate new greeting
             localStorage.removeItem(STORAGE_KEY);
-          } else if (!shouldUpdateGreeting(data.lastUpdated)) {
-            // Use the stored greeting if version matches and not expired
-            setGreeting(data.greeting);
-            return;
+          } else {
+            // Always prioritize time-based greeting if it has changed
+            if (data.greeting !== currentTimeGreeting) {
+              // Time of day changed, update to current time greeting
+              localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({
+                  greeting: currentTimeGreeting,
+                  lastUpdated: now,
+                  version: GREETING_VERSION,
+                })
+              );
+              setGreeting(currentTimeGreeting);
+              return;
+            } else if (!shouldUpdateGreeting(data.lastUpdated)) {
+              // Same time greeting and not time to update, keep stored greeting
+              setGreeting(data.greeting);
+              return;
+            }
           }
         }
 
-        // Time to select a new greeting. If there's no stored greeting (first run),
-        // use a time-based greeting to avoid an initial change after render.
         let newGreeting: string;
         if (!stored) {
-          newGreeting = getTimeBasedGreeting();
-        } else {
-          // 60% chance for time-based greeting, 40% for warm text when updating an expired greeting
-          const useTimeGreeting = Math.random() < 0.6;
-          if (useTimeGreeting) {
-            newGreeting = getTimeBasedGreeting();
+          // First visit - use time greeting, but check for weekend special
+          if (isWeekend() && Math.random() < 0.4) {
+            newGreeting = "Happy Weekend!";
           } else {
-            // Select random warm text
-            const randomIndex = Math.floor(Math.random() * WARM_TEXTS.length);
-            newGreeting = WARM_TEXTS[randomIndex];
+            newGreeting = currentTimeGreeting;
+          }
+        } else {
+          // Check for weekend special greeting first
+          if (isWeekend() && Math.random() < 0.3) {
+            newGreeting = "Happy Weekend!";
+          } else {
+            const useTimeGreeting = Math.random() < 0.6;
+            if (useTimeGreeting) {
+              newGreeting = currentTimeGreeting;
+            } else {
+              const randomIndex = Math.floor(Math.random() * WARM_TEXTS.length);
+              newGreeting = WARM_TEXTS[randomIndex];
+            }
           }
         }
 
-        // Store the new greeting with timestamp
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
@@ -112,13 +122,23 @@ export default function Greeting() {
 
         setGreeting(newGreeting);
       } catch (error) {
-        // Fallback if localStorage is not available
         setGreeting(getTimeBasedGreeting());
       }
     };
 
     selectGreeting();
   }, []);
+
+  // Prevent hydration mismatch by not rendering until client-side
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center px-4">
+        <h1 className="font-georgia text-3xl sm:text-4xl md:text-[40px] text-[#3D3D3A] dark:text-[#C2C0B6] text-center leading-tight md:leading-[60px] invisible">
+          Loading...
+        </h1>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center px-4">
