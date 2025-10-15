@@ -60,8 +60,8 @@ export default function Greeting() {
         }
 
         // Time to select a new greeting
-        // 70% chance for time-based greeting, 30% for warm text
-        const useTimeGreeting = Math.random() < 0.7;
+        // 60% chance for time-based greeting, 40% for warm text
+        const useTimeGreeting = Math.random() < 0.6;
         
         let newGreeting: string;
         if (useTimeGreeting) {
