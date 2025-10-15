@@ -121,7 +121,7 @@ function ChatMessageContent({
         const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
         
         return (
-          <p className="dark:text-white text-sm sm:text-base mt-6">
+          <p className="text-[#3D3D3A] dark:text-white text-sm sm:text-base mt-6">
             {siteIndexTranslations.text}{' '}
             <a 
               href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
@@ -212,11 +212,11 @@ export default function ChatMessage({
         <div className={`group flex flex-col items-end gap-2 ${isEditing ? 'w-full max-w-[90%] sm:max-w-[576px]' : ''}`}>
           {isEditing ? (
             /* Edit mode - inline textarea with full width */
-            <div className="w-full bg-[#1a1a1a] dark:bg-[#2a2a2a] border border-[rgba(252,252,252,0.1)] rounded-2xl p-4">
+            <div className="w-full bg-[#F0EEE6] dark:bg-[#2a2a2a] border border-[rgba(31,30,29,0.15)] dark:border-[rgba(252,252,252,0.1)] rounded-2xl p-4">
               <textarea
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
-                className="w-full bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus:outline-none text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] resize-none min-h-[50px] max-h-[200px]"
+                className="w-full bg-transparent border-none text-[#3D3D3A] dark:text-white placeholder:text-[#73726C] dark:placeholder:text-[#B5B5B5] focus:outline-none text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] resize-none min-h-[50px] max-h-[200px]"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -229,13 +229,13 @@ export default function ChatMessage({
                 <Button
                   onClick={handleCancelEdit}
                   variant="ghost"
-                  className="text-[#B5B5B5] hover:text-white text-sm"
+                  className="text-[#73726C] dark:text-[#B5B5B5] hover:text-[#3D3D3A] dark:hover:text-white text-sm"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSaveEdit}
-                  className="bg-white text-black hover:bg-gray-200 text-sm px-6"
+                  className="bg-[#FFC328] dark:bg-white text-white dark:text-black hover:bg-[#B5563A] dark:hover:bg-gray-200 text-sm px-6"
                 >
                   Save
                 </Button>
@@ -244,7 +244,7 @@ export default function ChatMessage({
           ) : (
             /* Normal message display - hugs content */
             <>
-              <div className="bg-[#242628] text-[#FCFCFC] px-4 sm:px-[17px] py-3 sm:py-[11px] rounded-[24px] rounded-br-[8px] max-w-[90%] sm:max-w-[576px] border border-[rgba(252,252,252,0.06)]">
+              <div className="bg-[#E9E7E1] dark:bg-[#242628] text-[#3D3D3A] dark:text-[#FCFCFC] px-4 sm:px-[17px] py-3 sm:py-[11px] rounded-[24px] rounded-br-[8px] max-w-[90%] sm:max-w-[576px] border border-[rgba(31,30,29,0.12)] dark:border-[rgba(252,252,252,0.06)]">
                 <p className="text-sm sm:text-[15.75px] leading-[24px] sm:leading-[28px] tracking-[-0.1px]">{chatMessage.content}</p>
               </div>
               
@@ -257,7 +257,7 @@ export default function ChatMessage({
                   className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
                   title="Edit"
                 >
-                  <Pencil className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                  <Pencil className="h-3.5 w-3.5 text-[#3D3D3A] dark:text-[#FCFCFC] hover:text-[#1F1E1D] dark:hover:text-white transition-colors" />
                 </Button>
                 <Button
                   onClick={() => copyToClipboard(chatMessage.content)}

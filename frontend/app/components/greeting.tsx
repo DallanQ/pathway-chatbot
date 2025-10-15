@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const WARM_TEXTS = [
+  "Welcome!",
   "Need assistance?",
   "What can I do for you?",
   "What's on your mind?",
@@ -18,6 +19,7 @@ const WARM_TEXTS = [
 ];
 
 const STORAGE_KEY = "chatbot_greeting_data";
+const GREETING_VERSION = "2"; // Increment this when greeting logic changes
 
 export default function Greeting() {
   const [greeting, setGreeting] = useState("Good evening!");
@@ -29,8 +31,10 @@ export default function Greeting() {
         return "Good morning!";
       } else if (hour >= 12 && hour < 18) {
         return "Good afternoon!";
-      } else {
+      } else if (hour >= 18 && hour < 24) {
         return "Good evening!";
+      } else {
+        return "Good night!";
       }
     };
 
@@ -51,9 +55,12 @@ export default function Greeting() {
 
         if (stored) {
           const data = JSON.parse(stored);
-          // Check if we should update (based on random interval)
-          if (!shouldUpdateGreeting(data.lastUpdated)) {
-            // Use the stored greeting
+          // Check version - if outdated, force refresh
+          if (data.version !== GREETING_VERSION) {
+            // Clear old data and continue to generate new greeting
+            localStorage.removeItem(STORAGE_KEY);
+          } else if (!shouldUpdateGreeting(data.lastUpdated)) {
+            // Use the stored greeting if version matches and not expired
             setGreeting(data.greeting);
             return;
           }
@@ -78,6 +85,7 @@ export default function Greeting() {
           JSON.stringify({
             greeting: newGreeting,
             lastUpdated: now,
+            version: GREETING_VERSION,
           })
         );
 
@@ -93,7 +101,7 @@ export default function Greeting() {
 
   return (
     <div className="flex items-center justify-center px-4">
-      <h1 className="font-georgia text-3xl sm:text-4xl md:text-[40px] text-[#C2C0B6] text-center leading-tight md:leading-[60px]">
+      <h1 className="font-georgia text-3xl sm:text-4xl md:text-[40px] text-[#3D3D3A] dark:text-[#C2C0B6] text-center leading-tight md:leading-[60px]">
         {greeting}
       </h1>
     </div>

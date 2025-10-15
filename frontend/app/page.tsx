@@ -3,7 +3,7 @@ import ChatSection from "./components/chat-section";
 
 export default function Home() {
   return (
-    <main className="h-dvh w-screen flex flex-col bg-white dark:bg-[#262624]">
+    <main className="h-dvh w-screen flex flex-col bg-[#FAF9F5] dark:bg-[#262624]">
       <Header />
       <div className="flex-1 flex flex-col overflow-hidden">
         <ChatSection />

@@ -99,14 +99,14 @@ export default function ChatInput(
           ))}
         </div>
       )}
-      <div className="w-full bg-[#242628] rounded-3xl px-4 py-3 border border-[rgba(252,252,252,0.06)]">
+      <div className="w-full bg-white dark:bg-[#242628] rounded-3xl px-4 py-3 border border-[rgba(31,30,29,0.15)] dark:border-[rgba(252,252,252,0.06)]">
         {/* Top row - Text Input */}
         <div className="relative flex items-center w-full mb-3">
           <textarea
             autoFocus
             name="message"
             placeholder={props.isAcmMode ? "Ask an ACM-related question" : "Ask a question"}
-            className="flex-1 bg-transparent border-none text-white placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-sm sm:text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
+            className="flex-1 bg-transparent border-none text-[#141413] dark:text-white placeholder:text-[#73726C] dark:placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-sm sm:text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: '#646362 transparent',
@@ -153,7 +153,7 @@ export default function ChatInput(
                   flex-shrink-0 px-3 py-1.5 rounded-full font-semibold text-xs transition-all
                   ${props.isAcmChecked 
                     ? 'bg-[#FFC328] text-[#454540]' 
-                    : 'bg-transparent border border-[#646362] text-[#B5B5B5]'
+                    : 'bg-transparent border border-[#73726C] dark:border-[#646362] text-[#73726C] dark:text-[#B5B5B5]'
                   }
                 `}
               >
@@ -178,7 +178,7 @@ export default function ChatInput(
               <Button 
                 type="button"
                 onClick={props.stop}
-                className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center"
+                className="rounded-full bg-[#FFC328] hover:bg-[#FFD155] text-white dark:bg-white dark:hover:bg-gray-100 dark:text-black h-10 w-10 p-0 flex items-center justify-center"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="4" y="4" width="8" height="8" fill="currentColor" rx="1"/>
@@ -190,7 +190,7 @@ export default function ChatInput(
               <Button 
                 type="submit" 
                 disabled={!props.input.trim()}
-                className="rounded-full bg-white hover:bg-gray-100 text-black h-10 w-10 p-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-full bg-[#FFC328] hover:bg-[#FFD155] text-white dark:bg-white dark:hover:bg-gray-100 dark:text-black h-10 w-10 p-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 2L7 9M14 2L9.5 14L7 9M14 2L2 6.5L7 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
