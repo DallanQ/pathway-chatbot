@@ -281,42 +281,52 @@ export default function ChatMessage({
       {/* Bot message - left aligned with inline action icons */}
       {!isUser && (
         <div className="w-full max-w-[640px]">
-          <ChatMessageContent
-            message={chatMessage}
-            isLoading={isLoading}
-            append={append}
-          />
-          
-          {/* Action buttons - inline after message content */}
-          {!isLoading && (
-            <div className="flex items-center gap-1 mt-1 mb-4">
-              <Button
-                onClick={() => copyToClipboard(chatMessage.content)}
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
-                title="Copy"
-              >
-                {isCopied ? (
-                  <Check className="h-4 w-4 text-white dark:text-[#FCFCFC]" />
-                ) : (
-                  <Copy className="h-4 w-4 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
-                )}
-              </Button>
-              <UserFeedbackComponent traceId={traceId}/>
-              {showReload && reload && (
-                <Button
-                  onClick={reload}
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
-                  title="Regenerate"
-                >
-                  <RefreshCw className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
-                </Button>
+          <div className="flex items-start gap-3">
+            {/* Avatar on the left */}
+            <div className="mt-1">
+              <ChatAvatar role={chatMessage.role} />
+            </div>
+
+            {/* Message content */}
+            <div className="flex-1">
+              <ChatMessageContent
+                message={chatMessage}
+                isLoading={isLoading}
+                append={append}
+              />
+
+              {/* Action buttons - inline after message content */}
+              {!isLoading && (
+                <div className="flex items-center gap-1 mt-1 mb-4">
+                  <Button
+                    onClick={() => copyToClipboard(chatMessage.content)}
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                    title="Copy"
+                  >
+                    {isCopied ? (
+                      <Check className="h-4 w-4 text-white dark:text-[#FCFCFC]" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                    )}
+                  </Button>
+                  <UserFeedbackComponent traceId={traceId}/>
+                  {showReload && reload && (
+                    <Button
+                      onClick={reload}
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                      title="Regenerate"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
