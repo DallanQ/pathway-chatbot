@@ -22,22 +22,39 @@ const STORAGE_KEY = "chatbot_greeting_data";
 const GREETING_VERSION = "2"; // Increment this when greeting logic changes
 
 export default function Greeting() {
-  const [greeting, setGreeting] = useState("Good evening!");
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return "Good morning!";
+    } else if (hour >= 12 && hour < 18) {
+      return "Good afternoon!";
+    } else if (hour >= 18 && hour < 24) {
+      return "Good evening!";
+    } else {
+      return "Good night!";
+    }
+  };
+
+  // Initialize greeting synchronously to avoid a flashed/incorrect greeting.
+  // Prefer stored greeting when valid; otherwise use a time-based greeting.
+  const [greeting, setGreeting] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.version === GREETING_VERSION) {
+          // If stored and version matches, use it (even if slightly old).
+          return data.greeting;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    // Fallback to time-based greeting for initial render
+    return getTimeBasedGreeting();
+  });
 
   useEffect(() => {
-    const getTimeBasedGreeting = () => {
-      const hour = new Date().getHours();
-      if (hour >= 5 && hour < 12) {
-        return "Good morning!";
-      } else if (hour >= 12 && hour < 18) {
-        return "Good afternoon!";
-      } else if (hour >= 18 && hour < 24) {
-        return "Good evening!";
-      } else {
-        return "Good night!";
-      }
-    };
-
     const shouldUpdateGreeting = (lastUpdated: number): boolean => {
       const now = Date.now();
       const timeDiff = now - lastUpdated;
@@ -66,17 +83,21 @@ export default function Greeting() {
           }
         }
 
-        // Time to select a new greeting
-        // 60% chance for time-based greeting, 40% for warm text
-        const useTimeGreeting = Math.random() < 0.6;
-        
+        // Time to select a new greeting. If there's no stored greeting (first run),
+        // use a time-based greeting to avoid an initial change after render.
         let newGreeting: string;
-        if (useTimeGreeting) {
+        if (!stored) {
           newGreeting = getTimeBasedGreeting();
         } else {
-          // Select random warm text
-          const randomIndex = Math.floor(Math.random() * WARM_TEXTS.length);
-          newGreeting = WARM_TEXTS[randomIndex];
+          // 60% chance for time-based greeting, 40% for warm text when updating an expired greeting
+          const useTimeGreeting = Math.random() < 0.6;
+          if (useTimeGreeting) {
+            newGreeting = getTimeBasedGreeting();
+          } else {
+            // Select random warm text
+            const randomIndex = Math.floor(Math.random() * WARM_TEXTS.length);
+            newGreeting = WARM_TEXTS[randomIndex];
+          }
         }
 
         // Store the new greeting with timestamp
