@@ -4,7 +4,6 @@ import { Message } from "ai";
 import { Fragment, useState } from "react";
 import { Button } from "../../button";
 import { useCopyToClipboard } from "../hooks/use-copy-to-clipboard";
-import { getSiteIndexTranslations } from '../utils/localization';
 import {
   ChatHandler,
   DocumentFileData,
@@ -113,28 +112,6 @@ function ChatMessageContent({
         />
       ) : null,
     },
-    {
-      order: 5,
-      component: sourceData[0] ? (() => {
-        // Get localized site index message using user's language from backend
-        const userLanguage = userLanguageData[0]?.language || 'en';
-        const siteIndexTranslations = getSiteIndexTranslations(userLanguage);
-        
-        return (
-          <p className="text-[#3D3D3A] dark:text-white text-sm sm:text-base mt-6">
-            {siteIndexTranslations.text}{' '}
-            <a 
-              href="https://missionaries.prod.byu-pathway.psdops.com/missionary-services-site-index" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline dark:text-blue-400"
-            >
-              {siteIndexTranslations.linkText}
-            </a>
-          </p>
-        );
-      })() : null,
-    }
   ];
 
   return (
