@@ -123,12 +123,14 @@ export default function ChatSection() {
             setIsAcmChecked={setIsAcmChecked}
           />
           
-          {/* Disclaimer under input */}
-          <div className="px-2">
-            <p className="text-[9px] sm:text-[10px] leading-[12px] sm:leading-[14px] text-red-500 dark:text-red-400">
-              <span className="font-bold">IMPORTANT:</span> <span className="font-medium opacity-80 font-[11px]">This website is intended for missionaries assigned to BYU-Pathway only — not for student use. Please direct students to the Companion app in their portal. We ask that you do not share or promote this site on social media. Thank you for respecting this guideline.</span>
-            </p>
-          </div>
+          {/* Disclaimer under input - only show before first message */}
+          {!hasStartedChat && !hasMessages && (
+            <div className="px-2">
+              <p className="text-[9px] sm:text-[10px] leading-[12px] sm:leading-[14px] text-red-500 dark:text-red-400">
+                <span className="font-bold">IMPORTANT:</span> <span className="font-medium opacity-80 font-[11px]">This website is intended for missionaries assigned to BYU-Pathway only — not for student use. Please direct students to the Companion app in their portal. We ask that you do not share or promote this site on social media. Thank you for respecting this guideline.</span>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
