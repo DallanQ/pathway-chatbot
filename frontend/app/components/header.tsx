@@ -18,7 +18,7 @@ export default function Header() {
               alt="BYU Pathway Logo"
               width={140}
               height={18}
-              className="h-[15px] sm:h-[16px] w-auto"
+              className="h-[15px] sm:h-[24px] min-[570px]:h-[20px] w-auto"
             />
           </a>
         </div>
