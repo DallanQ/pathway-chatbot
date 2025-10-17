@@ -2,7 +2,6 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../button";
-import ChatActions from "./chat-actions";
 import ChatMessage from "./chat-message";
 import { ChatHandler } from "./chat.interface";
 import { useClientConfig } from "./hooks/use-config";
@@ -10,7 +9,7 @@ import { useClientConfig } from "./hooks/use-config";
 export default function ChatMessages(
   props: Pick<
     ChatHandler,
-    "messages" | "isLoading" | "reload" | "stop" | "append"
+    "messages" | "isLoading" | "reload" | "stop" | "append" | "setMessages"
   >,
 ) {
   const { backend } = useClientConfig();
@@ -29,9 +28,6 @@ export default function ChatMessages(
 
   const isLastMessageFromAssistant =
     messageLength > 0 && lastMessage?.role !== "user";
-  const showReload =
-    props.reload && !props.isLoading && isLastMessageFromAssistant;
-  const showStop = props.stop && props.isLoading;
 
   // `isPending` indicate
   // that stream response is not yet received from the server,
@@ -57,40 +53,36 @@ export default function ChatMessages(
 
   return (
     <div
-      className="flex-1 w-full rounded-b-xl bg-white p-4 shadow-xl relative overflow-y-auto"
+      className="flex-1 w-full"
       ref={scrollableChatContainerRef}
     >
-      <div className="flex flex-col gap-5 divide-y">
+      <div className="flex flex-col gap-6">
         {props.messages.map((m, i) => {
           const isLoadingMessage = i === messageLength - 1 && props.isLoading;
+          const isLastMessage = i === messageLength - 1;
+          const showReloadIcon = isLastMessage && !props.isLoading && m.role !== "user";
           return (
             <ChatMessage
               key={m.id}
               chatMessage={m}
               isLoading={isLoadingMessage}
               append={props.append!}
+              reload={props.reload}
+              showReload={showReloadIcon}
+              messages={props.messages}
+              setMessages={props.setMessages}
             />
           );
         })}
         {isPending && (
           <div className="flex justify-center items-center pt-10">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin text-[#C2C0B6]" />
           </div>
         )}
       </div>
-      {(showReload || showStop) && (
-        <div className="flex justify-end py-4">
-          <ChatActions
-            reload={props.reload}
-            stop={props.stop}
-            showReload={showReload}
-            showStop={showStop}
-          />
-        </div>
-      )}
       {!messageLength && starterQuestions?.length && props.append && (
-        <div className="absolute bottom-6 left-0 w-full">
-          <div className="grid grid-cols-2 gap-2 mx-20">
+        <div className="w-full mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {starterQuestions.map((question, i) => (
               <Button
                 variant="outline"
@@ -98,6 +90,7 @@ export default function ChatMessages(
                 onClick={() =>
                   props.append!({ role: "user", content: question })
                 }
+                className="border-[#242628] dark:border-[rgba(252,252,252,0.06)] bg-transparent hover:bg-[rgba(252,252,252,0.05)] text-white"
               >
                 {question}
               </Button>
