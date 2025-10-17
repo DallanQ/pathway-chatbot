@@ -106,7 +106,7 @@ export default function ChatInput(
             autoFocus
             name="message"
             placeholder={props.isAcmMode ? "Ask an ACM-related question" : "Ask a question"}
-            className="flex-1 bg-transparent border-none text-[#141413] dark:text-white placeholder:text-[#73726C] dark:placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-sm sm:text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
+            className="flex-1 bg-transparent border-none text-[#141413] dark:text-white placeholder:text-[#73726C] dark:placeholder:text-[#B5B5B5] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none text-sm sm:text-[15.875px] px-0 resize-none min-h-[24px] max-h-[200px] md:max-h-[280px] lg:max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#646362] scrollbar-track-transparent hover:scrollbar-thumb-[#7a7977]"
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: '#646362 transparent',
@@ -126,7 +126,8 @@ export default function ChatInput(
               // Auto-resize textarea as user types
               const target = e.target as HTMLTextAreaElement;
               target.style.height = 'auto';
-              target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+              const maxHeight = window.innerWidth >= 1024 ? 320 : window.innerWidth >= 768 ? 280 : 200;
+              target.style.height = Math.min(target.scrollHeight, maxHeight) + 'px';
             }}
             onKeyDown={(e) => {
               // Submit on Enter, new line on Shift+Enter

@@ -91,17 +91,17 @@ export default function Greeting() {
         let newGreeting: string;
         if (!stored) {
           // First visit - use time greeting, but check for weekend special
-          if (isWeekend() && Math.random() < 0.4) {
+          if (isWeekend() && Math.random() < 0.7) {
             newGreeting = "Happy Weekend!";
           } else {
             newGreeting = currentTimeGreeting;
           }
         } else {
           // Check for weekend special greeting first
-          if (isWeekend() && Math.random() < 0.3) {
+          if (isWeekend() && Math.random() < 0.7) {
             newGreeting = "Happy Weekend!";
           } else {
-            const useTimeGreeting = Math.random() < 0.6;
+            const useTimeGreeting = Math.random() < 0.5;
             if (useTimeGreeting) {
               newGreeting = currentTimeGreeting;
             } else {
