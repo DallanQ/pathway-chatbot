@@ -76,7 +76,7 @@ export function ChatSources({ data }: { data: SourceData }) {
           })}
         </div>
         <span className="text-[#3D3D3A] dark:text-[#FCFCFC] text-[13.781px] leading-[21px] tracking-[-0.1px]">
-          {sortedSources.length} references
+          {sortedSources.length} sources
         </span>
         <ChevronDown 
           className={cn(
