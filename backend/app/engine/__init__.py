@@ -2,6 +2,7 @@ from app.engine.index import get_index
 from app.engine.node_postprocessors import NodeCitationProcessor
 from fastapi import HTTPException
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from llama_index.core.memory import ChatMemoryBuffer
 
 from app.engine.custom_condense_plus_context import CustomCondensePlusContextChatEngine
 
@@ -113,14 +114,16 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     Follow Up Input: {question}
     Standalone question:"""
 
+    # Create memory buffer with token limit to maintain conversation context
+    memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
+
     return CustomCondensePlusContextChatEngine.from_defaults(
         system_prompt=SYSTEM_CITATION_PROMPT,
         context_prompt=CONTEXT_PROMPT,
         condense_prompt=CONDENSE_PROMPT_TEMPLATE,
-        skip_condense=True,
+        skip_condense=False,  # Enable question condensation with conversation history
         retriever=retriever,
         node_postprocessors=node_postprocessors,
         verbose=True,
-        chat_history=None,
-        memory=None
+        memory=memory  # Add memory buffer for conversation context
     )
