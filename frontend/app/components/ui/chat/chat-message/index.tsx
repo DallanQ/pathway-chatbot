@@ -257,7 +257,7 @@ export default function ChatMessage({
       
       {/* Bot message - left aligned with inline action icons */}
       {!isUser && (
-        <div className="w-full max-w-[640px]">
+        <div className="w-full">
           <div className="flex items-start gap-3">
             {/* Avatar on the left */}
             <div className="mt-1">
