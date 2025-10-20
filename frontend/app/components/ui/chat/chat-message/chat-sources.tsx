@@ -37,13 +37,17 @@ export function ChatSources({ data }: { data: SourceData }) {
     }));
   }, [data.nodes]);
 
-  const sortedSources = documents
-    .flatMap((document) => document.sources)
-    .sort((a, b) => {
-      const getNumber = (url: string) =>
-        parseInt(url.match(/^\d+/)?.[0] || "0", 10);
-      return getNumber(a.citation_node_id) - getNumber(b.citation_node_id);
-    });
+  const sortedSources = useMemo(
+    () =>
+      documents
+        .flatMap((document) => document.sources)
+        .sort((a, b) => {
+          const getNumber = (url: string) =>
+            parseInt(url.match(/^\d+/)?.[0] || "0", 10);
+          return getNumber(a.citation_node_id) - getNumber(b.citation_node_id);
+        }),
+    [documents]
+  );
 
   // Dynamic height update
   useEffect(() => {
@@ -62,19 +66,6 @@ export function ChatSources({ data }: { data: SourceData }) {
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
   }, [isExpanded, sortedSources]);
-
-  // Optional: reset to "auto" height after animation
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
-    if (isExpanded && contentRef.current) {
-      timeout = setTimeout(() => {
-        setHeight(Number.MAX_SAFE_INTEGER);
-      }, 500); // match transition duration
-    }
-
-    return () => clearTimeout(timeout);
-  }, [isExpanded]);
 
   if (documents.length === 0) return null;
 
@@ -105,7 +96,7 @@ export function ChatSources({ data }: { data: SourceData }) {
           })}
         </div>
         <span className="text-[#3D3D3A] dark:text-[#FCFCFC] text-[13.781px] leading-[21px] tracking-[-0.1px]">
-          {sortedSources.length} sources
+          {sortedSources.length} {sortedSources.length === 1 ? 'source' : 'sources'}
         </span>
         <ChevronDown
           className={cn(
@@ -119,7 +110,7 @@ export function ChatSources({ data }: { data: SourceData }) {
       <div
         className="overflow-hidden transition-all duration-500 ease-in-out"
         style={{
-          maxHeight: height === Number.MAX_SAFE_INTEGER ? "none" : `${height}px`,
+          height: `${height}px`,
           opacity: isExpanded ? 1 : 0,
           marginTop: isExpanded ? "0.5rem" : "0rem",
         }}
