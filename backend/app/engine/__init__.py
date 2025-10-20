@@ -115,7 +115,7 @@ def get_chat_engine(filters=None, params=None) -> CustomCondensePlusContextChatE
     Standalone question:"""
 
     # Create memory buffer with token limit to maintain conversation context
-    memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
+    memory = ChatMemoryBuffer.from_defaults(token_limit=15000)
 
     return CustomCondensePlusContextChatEngine.from_defaults(
         system_prompt=SYSTEM_CITATION_PROMPT,
