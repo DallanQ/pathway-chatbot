@@ -240,11 +240,11 @@ export default function ChatMessage({
                   onClick={() => copyToClipboard(chatMessage.content)}
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                  className={`h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors ${isCopied ? 'pointer-events-none' : ''}`}
                   title="Copy"
                 >
                   {isCopied ? (
-                    <Check className="h-3.5 w-3.5 text-white dark:text-[#FCFCFC]" />
+                    <Check className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC]" />
                   ) : (
                     <Copy className="h-3.5 w-3.5 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
                   )}
@@ -279,11 +279,11 @@ export default function ChatMessage({
                     onClick={() => copyToClipboard(chatMessage.content)}
                     size="icon"
                     variant="ghost"
-                    className="h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors"
+                    className={`h-6 w-6 rounded-full hover:bg-[rgba(181,181,181,0.15)] transition-colors ${isCopied ? 'pointer-events-none' : ''}`}
                     title="Copy"
                   >
                     {isCopied ? (
-                      <Check className="h-4 w-4 text-white dark:text-[#FCFCFC]" />
+                      <Check className="h-4 w-4 text-gray-700 dark:text-[#FCFCFC]" />
                     ) : (
                       <Copy className="h-4 w-4 text-gray-700 dark:text-[#FCFCFC] hover:text-gray-900 dark:hover:text-white transition-colors" />
                     )}
