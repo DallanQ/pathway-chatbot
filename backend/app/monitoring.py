@@ -42,8 +42,14 @@ class MetricsCollector:
             mem_info = self._process.memory_info()
             mem_percent = self._process.memory_percent()
             
-            # CPU metrics
-            cpu_percent = self._process.cpu_percent(interval=0.1)
+            # CPU metrics - get non-blocking value first
+            cpu_percent = self._process.cpu_percent(interval=None)
+            # If it's the first call or 0, try with a small interval
+            if cpu_percent == 0.0:
+                cpu_percent = self._process.cpu_percent(interval=0.05)
+            
+            # System-wide CPU (more reliable)
+            system_cpu_percent = psutil.cpu_percent(interval=0.05)
             
             # System-wide metrics
             system_memory = psutil.virtual_memory()
@@ -61,6 +67,7 @@ class MetricsCollector:
                 "memory_vms_mb": mem_info.vms / 1024 / 1024,
                 "memory_percent": mem_percent,
                 "cpu_percent": cpu_percent,
+                "system_cpu_percent": system_cpu_percent,
                 "num_threads": num_threads,
                 "num_connections": num_connections,
                 "system_memory_percent": system_memory.percent,
