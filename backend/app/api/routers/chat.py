@@ -110,8 +110,7 @@ async def chat(
         if is_suspicious and security_details.get("risk_level") == "LOW":
             last_message_content = InputValidator.sanitize_input(last_message_content)
         
-        # Delete the chat_history of the engine and
-        data.clear_chat_messages()
+        # Get the conversation history from incoming messages
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
@@ -122,8 +121,6 @@ async def chat(
             f"Creating chat engine with filters: {str(filters)}",
         )
         chat_engine = get_chat_engine(filters=filters, params=params)
-        # Delete the chat_history from the chat_engine
-        chat_engine.reset()
 
         event_handler = EventCallbackHandler()
         chat_engine.callback_manager.handlers.append(event_handler)  # type: ignore
@@ -254,8 +251,7 @@ async def chat_request(
         if is_suspicious and security_details.get("risk_level") == "LOW":
             last_message_content = InputValidator.sanitize_input(last_message_content)
         
-        # Delete the chat_history of the engine and
-        data.clear_chat_messages()
+        # Get the conversation history from incoming messages
         messages = data.get_history_messages()
 
         doc_ids = data.get_chat_document_ids()
@@ -266,8 +262,6 @@ async def chat_request(
             f"Creating chat engine with filters: {str(filters)}",
         )
         chat_engine = get_chat_engine(filters=filters, params=params)
-        # Delete the chat_history from the chat_engine
-        chat_engine.reset()
 
         response = await chat_engine.achat(last_message_content, messages)
 

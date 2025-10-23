@@ -22,7 +22,7 @@ const WARM_TEXTS = [
 // LocalStorage key to persist greeting state across sessions
 const STORAGE_KEY = "chatbot_greeting_data";
 // Version number to invalidate old greeting data when logic changes
-const GREETING_VERSION = "3";
+const GREETING_VERSION = "4";
 
 export default function Greeting() {
   const [greeting, setGreeting] = useState<string>("");
@@ -113,7 +113,7 @@ export default function Greeting() {
             newGreeting = "Happy Weekend!";
           } else {
             // 50/50 split between time-based and casual greetings
-            const useTimeGreeting = Math.random() < 0.5;
+            const useTimeGreeting = Math.random() < 0.4;
             if (useTimeGreeting) {
               newGreeting = currentTimeGreeting;
             } else {
