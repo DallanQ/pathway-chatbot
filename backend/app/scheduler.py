@@ -55,7 +55,7 @@ class MonitoringScheduler:
         except Exception as e:
             logger.error(f"Error starting monitoring scheduler: {e}", exc_info=True)
     
-    def shutdown(self):
+    async def shutdown(self):
         """Gracefully shutdown the scheduler."""
         if not self.is_running:
             return
@@ -63,8 +63,7 @@ class MonitoringScheduler:
         try:
             # Generate final report before shutdown
             logger.info("Generating final report before shutdown...")
-            import asyncio
-            asyncio.create_task(self.monitoring_service.daily_report_task())
+            await self.monitoring_service.daily_report_task()
             
             # Shutdown scheduler
             self.scheduler.shutdown(wait=True)

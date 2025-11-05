@@ -23,17 +23,26 @@ logger = logging.getLogger("uvicorn")
 class MetricsCollector:
     """Collects and stores metrics in memory with thread-safe operations."""
     
+    # Maximum number of metrics to store before auto-flush
+    MAX_METRICS_BUFFER = 10000
+    
     def __init__(self):
         self._metrics: List[Dict[str, Any]] = []
         self._lock = Lock()
         self._process = psutil.Process()
         self._start_time = time.time()
+        self._flush_callback = None
         
         # Aggregated counters
         self._request_count = 0
         self._error_count = 0
         self._security_blocks = 0
         self._total_response_time = 0.0
+        
+        # Initialize CPU monitoring with background sampling
+        # This primes the CPU cache so subsequent interval=None calls work
+        self._process.cpu_percent(interval=None)
+        psutil.cpu_percent(interval=None)
         
     def collect_system_metrics(self) -> Dict[str, Any]:
         """Collect current system metrics."""
@@ -42,14 +51,12 @@ class MetricsCollector:
             mem_info = self._process.memory_info()
             mem_percent = self._process.memory_percent()
             
-            # CPU metrics - get non-blocking value first
+            # CPU metrics - use non-blocking call only
+            # First call returns 0.0, subsequent calls use cached value
             cpu_percent = self._process.cpu_percent(interval=None)
-            # If it's the first call or 0, try with a small interval
-            if cpu_percent == 0.0:
-                cpu_percent = self._process.cpu_percent(interval=0.05)
             
-            # System-wide CPU (more reliable)
-            system_cpu_percent = psutil.cpu_percent(interval=0.05)
+            # System-wide CPU (non-blocking)
+            system_cpu_percent = psutil.cpu_percent(interval=None)
             
             # System-wide metrics
             system_memory = psutil.virtual_memory()
@@ -125,6 +132,16 @@ class MetricsCollector:
                 
                 if metadata and metadata.get("security_blocked"):
                     self._security_blocks += 1
+                
+                # Auto-flush if buffer limit reached
+                if len(self._metrics) >= self.MAX_METRICS_BUFFER:
+                    logger.warning(
+                        f"Metrics buffer reached {self.MAX_METRICS_BUFFER} items. "
+                        f"Auto-flushing to prevent OOM."
+                    )
+                    if self._flush_callback:
+                        # Schedule async flush without blocking
+                        asyncio.create_task(self._flush_callback())
                     
         except Exception as e:
             logger.error(f"Error recording request end: {e}")
@@ -138,6 +155,10 @@ class MetricsCollector:
         """Clear all collected metrics (thread-safe)."""
         with self._lock:
             self._metrics.clear()
+    
+    def set_flush_callback(self, callback):
+        """Set callback function to call when buffer limit is reached."""
+        self._flush_callback = callback
     
     def get_summary_stats(self) -> Dict[str, Any]:
         """Get summary statistics for the current period."""
@@ -168,6 +189,9 @@ class MonitoringService:
         self.metrics_collector = MetricsCollector()
         self.reports_dir = Path("monitoring_reports")
         self.reports_dir.mkdir(exist_ok=True)
+        
+        # Set auto-flush callback to prevent OOM
+        self.metrics_collector.set_flush_callback(self._auto_flush_metrics)
         
         # AWS S3 configuration
         self.s3_bucket = os.getenv("MONITORING_S3_BUCKET")
@@ -238,8 +262,28 @@ class MonitoringService:
             logger.error(f"Error generating daily report: {e}", exc_info=True)
             return None
     
+    async def _auto_flush_metrics(self):
+        """Internal method called when metrics buffer is full."""
+        try:
+            logger.warning("Auto-flushing metrics due to buffer limit")
+            
+            # Generate an intermediate report
+            filepath = self.generate_daily_report()
+            
+            if filepath:
+                # Upload to S3 if enabled
+                if self.enable_s3_upload:
+                    await self.upload_to_s3(filepath)
+                
+                # Clear metrics after flush
+                self.metrics_collector.clear_metrics()
+                logger.info("Auto-flush completed successfully")
+            
+        except Exception as e:
+            logger.error(f"Error in auto-flush: {e}", exc_info=True)
+    
     async def upload_to_s3(self, filepath: str) -> bool:
-        """Upload report to S3 asynchronously."""
+        """Upload report to S3 asynchronously using asyncio.to_thread."""
         if not self.enable_s3_upload or not self.s3_client:
             return False
         
@@ -247,8 +291,9 @@ class MonitoringService:
             filename = Path(filepath).name
             s3_key = f"{self.s3_prefix}/{filename}"
             
-            # Upload to S3
-            self.s3_client.upload_file(
+            # Upload to S3 in a thread pool to avoid blocking event loop
+            await asyncio.to_thread(
+                self.s3_client.upload_file,
                 filepath,
                 self.s3_bucket,
                 s3_key
@@ -259,6 +304,7 @@ class MonitoringService:
             
         except Exception as e:
             logger.error(f"Error uploading to S3: {e}", exc_info=True)
+            return False
             return False
     
     async def daily_report_task(self):
@@ -308,14 +354,24 @@ class MonitoringService:
             logger.error(f"Error cleaning up old reports: {e}")
     
     def log_memory_usage(self):
-        """Log current memory usage (useful for debugging)."""
+        """Log current memory usage and system health (useful for debugging crashes)."""
         try:
             metrics = self.metrics_collector.collect_system_metrics()
+            summary = self.metrics_collector.get_summary_stats()
+            
             logger.info(
-                f"Memory: {metrics['memory_rss_mb']:.2f} MB "
-                f"({metrics['memory_percent']:.2f}%), "
-                f"CPU: {metrics['cpu_percent']:.2f}%, "
-                f"Threads: {metrics['num_threads']}"
+                f"System Health Check:\n"
+                f"  Memory: {metrics['memory_rss_mb']:.2f} MB "
+                f"({metrics['memory_percent']:.2f}% of system)\n"
+                f"  CPU: Process={metrics['cpu_percent']:.2f}%, "
+                f"System={metrics['system_cpu_percent']:.2f}%\n"
+                f"  Threads: {metrics['num_threads']}, "
+                f"Connections: {metrics['num_connections']}\n"
+                f"  Requests: {summary['total_requests']} total, "
+                f"{summary['total_errors']} errors ({summary['error_rate']*100:.1f}%)\n"
+                f"  Avg Response Time: {summary['avg_response_time_seconds']:.3f}s\n"
+                f"  Uptime: {summary['uptime_hours']:.2f} hours\n"
+                f"  Metrics Buffer: {len(self.metrics_collector._metrics)}/{self.metrics_collector.MAX_METRICS_BUFFER}"
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}")

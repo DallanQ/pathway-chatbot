@@ -5,6 +5,9 @@ Captures all requests and sends metrics to the monitoring service.
 
 import time
 import uuid
+import sys
+import traceback
+import psutil
 from typing import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -59,7 +62,35 @@ class MonitoringMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             error = str(e)
-            logger.error(f"Request {request_id} failed: {e}", exc_info=True)
+            
+            # Enhanced error context for crash diagnosis
+            error_context = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc(),
+            }
+            
+            # Capture memory state at crash time
+            try:
+                process = psutil.Process()
+                mem_info = process.memory_info()
+                error_context.update({
+                    "crash_memory_rss_mb": mem_info.rss / 1024 / 1024,
+                    "crash_memory_vms_mb": mem_info.vms / 1024 / 1024,
+                    "crash_memory_percent": process.memory_percent(),
+                    "crash_num_threads": process.num_threads(),
+                })
+            except Exception as mem_error:
+                logger.warning(f"Could not capture crash memory state: {mem_error}")
+            
+            # Add to metadata for detailed logging
+            metadata.update(error_context)
+            
+            logger.error(
+                f"Request {request_id} crashed: {error_context['error_type']} - {error}\n"
+                f"Memory at crash: {error_context.get('crash_memory_rss_mb', 'N/A')} MB\n"
+                f"Traceback:\n{error_context['traceback']}"
+            )
             raise
             
         finally:
