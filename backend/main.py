@@ -24,6 +24,16 @@ app = FastAPI()
 init_settings()
 init_observability()
 
+# Initialize monitoring
+from app.middleware.monitoring_middleware import MonitoringMiddleware
+from app.scheduler import get_monitoring_scheduler
+
+# Add monitoring middleware
+app.add_middleware(MonitoringMiddleware)
+
+# Start monitoring scheduler
+monitoring_scheduler = get_monitoring_scheduler()
+
 environment = os.getenv("ENVIRONMENT", "dev")  # Default to 'development' if not set
 logger = logging.getLogger("uvicorn")
 
@@ -61,6 +71,23 @@ mount_static_files("output", "/api/files/output")
 app.include_router(chat_router, prefix="/api/chat")
 app.include_router(config_router, prefix="/api/chat/config")
 app.include_router(file_upload_router, prefix="/api/chat/upload")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    logger.info("Starting monitoring scheduler...")
+    monitoring_scheduler.start()
+    logger.info("Application startup complete")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("Shutting down monitoring scheduler...")
+    monitoring_scheduler.shutdown()
+    logger.info("Application shutdown complete")
+
 
 if __name__ == "__main__":
     app_host = os.getenv("APP_HOST", "0.0.0.0")
