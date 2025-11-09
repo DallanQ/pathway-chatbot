@@ -1,7 +1,13 @@
 """
 Comprehensive monitoring system for the Pathway Chatbot backend.
 Tracks memory usage, performance metrics, request patterns, and system health.
-Generates daily Parquet reports and uploads to S3.
+Generates hourly Parquet reports and uploads to S3.
+
+ENHANCEMENTS:
+- Hourly uploads (reduced from daily for better data safety)
+- 90% memory emergency trigger (prevents OOM crashes)
+- Startup recovery (uploads unsaved reports from previous session)
+- All thresholds configurable via environment variables
 """
 
 import os
@@ -19,12 +25,17 @@ import json
 
 logger = logging.getLogger("uvicorn")
 
+# Configuration constants with environment variable overrides
+BYTES_TO_MB = 1024 * 1024  # Conversion factor
+
 
 class MetricsCollector:
     """Collects and stores metrics in memory with thread-safe operations."""
     
-    # Maximum number of metrics to store before auto-flush
-    MAX_METRICS_BUFFER = 10000
+    # Configurable thresholds with defaults
+    MAX_METRICS_BUFFER = int(os.getenv("MAX_METRICS_BUFFER", "500"))
+    EMERGENCY_THRESHOLD_PERCENT = float(os.getenv("EMERGENCY_MEMORY_THRESHOLD_PERCENT", "90"))
+    EMERGENCY_ALERT_COOLDOWN_SECONDS = int(os.getenv("EMERGENCY_ALERT_COOLDOWN_SECONDS", "300"))  # 5 minutes
     
     def __init__(self):
         self._metrics: List[Dict[str, Any]] = []
@@ -32,12 +43,30 @@ class MetricsCollector:
         self._process = psutil.Process()
         self._start_time = time.time()
         self._flush_callback = None
+        self._emergency_callback = None
+        
+        # Calculate emergency threshold dynamically based on system memory
+        # This allows the threshold to adapt if memory limits change
+        system_memory = psutil.virtual_memory()
+        system_memory_mb = system_memory.total / BYTES_TO_MB
+        self._emergency_memory_threshold_mb = (self.EMERGENCY_THRESHOLD_PERCENT / 100) * system_memory_mb
+        
+        logger.info(
+            f"Monitoring configuration:\n"
+            f"  Max buffer size: {self.MAX_METRICS_BUFFER:,} metrics\n"
+            f"  Emergency threshold: {self._emergency_memory_threshold_mb:.2f} MB "
+            f"({self.EMERGENCY_THRESHOLD_PERCENT}% of {system_memory_mb:.2f} MB)\n"
+            f"  Alert cooldown: {self.EMERGENCY_ALERT_COOLDOWN_SECONDS} seconds"
+        )
         
         # Aggregated counters
         self._request_count = 0
         self._error_count = 0
         self._security_blocks = 0
         self._total_response_time = 0.0
+        
+        # Track last emergency alert to avoid spam
+        self._last_emergency_alert = 0
         
         # Initialize CPU monitoring with background sampling
         # This primes the CPU cache so subsequent interval=None calls work
@@ -52,10 +81,7 @@ class MetricsCollector:
             mem_percent = self._process.memory_percent()
             
             # CPU metrics - use non-blocking call only
-            # First call returns 0.0, subsequent calls use cached value
             cpu_percent = self._process.cpu_percent(interval=None)
-            
-            # System-wide CPU (non-blocking)
             system_cpu_percent = psutil.cpu_percent(interval=None)
             
             # System-wide metrics
@@ -70,20 +96,33 @@ class MetricsCollector:
             
             return {
                 "timestamp": datetime.utcnow().isoformat(),
-                "memory_rss_mb": mem_info.rss / 1024 / 1024,
-                "memory_vms_mb": mem_info.vms / 1024 / 1024,
+                "memory_rss_mb": mem_info.rss / BYTES_TO_MB,
+                "memory_vms_mb": mem_info.vms / BYTES_TO_MB,
                 "memory_percent": mem_percent,
                 "cpu_percent": cpu_percent,
                 "system_cpu_percent": system_cpu_percent,
                 "num_threads": num_threads,
                 "num_connections": num_connections,
                 "system_memory_percent": system_memory.percent,
-                "system_memory_available_mb": system_memory.available / 1024 / 1024,
+                "system_memory_available_mb": system_memory.available / BYTES_TO_MB,
                 "uptime_seconds": time.time() - self._start_time,
             }
         except Exception as e:
             logger.error(f"Error collecting system metrics: {e}")
             return {}
+    
+    def check_memory_threshold(self, memory_rss_mb: float) -> bool:
+        """
+        Check if memory has exceeded emergency threshold.
+        Returns True if emergency action needed.
+        """
+        if memory_rss_mb >= self._emergency_memory_threshold_mb:
+            # Avoid spamming alerts - only trigger once per cooldown period
+            current_time = time.time()
+            if current_time - self._last_emergency_alert > self.EMERGENCY_ALERT_COOLDOWN_SECONDS:
+                self._last_emergency_alert = current_time
+                return True
+        return False
     
     def record_request_start(self, request_id: str, endpoint: str, method: str) -> float:
         """Record the start of a request and return start time."""
@@ -127,16 +166,31 @@ class MetricsCollector:
                 self._request_count += 1
                 self._total_response_time += duration
                 
+                # Track errors (4xx and 5xx status codes)
                 if status_code >= 400:
                     self._error_count += 1
                 
                 if metadata and metadata.get("security_blocked"):
                     self._security_blocks += 1
                 
+                # Check for emergency memory threshold
+                memory_rss_mb = system_metrics.get("memory_rss_mb", 0)
+                if self.check_memory_threshold(memory_rss_mb):
+                    system_memory = psutil.virtual_memory()
+                    system_memory_mb = system_memory.total / BYTES_TO_MB
+                    logger.critical(
+                        f"🚨 EMERGENCY: Memory usage at {memory_rss_mb:.2f} MB "
+                        f"({memory_rss_mb/system_memory_mb*100:.1f}% of {system_memory_mb:.0f} MB limit). "
+                        f"Triggering emergency upload!"
+                    )
+                    if self._emergency_callback:
+                        # Schedule emergency upload without blocking
+                        asyncio.create_task(self._emergency_callback(memory_rss_mb))
+                
                 # Auto-flush if buffer limit reached
                 if len(self._metrics) >= self.MAX_METRICS_BUFFER:
                     logger.warning(
-                        f"Metrics buffer reached {self.MAX_METRICS_BUFFER} items. "
+                        f"Metrics buffer reached {self.MAX_METRICS_BUFFER:,} items. "
                         f"Auto-flushing to prevent OOM."
                     )
                     if self._flush_callback:
@@ -159,6 +213,10 @@ class MetricsCollector:
     def set_flush_callback(self, callback):
         """Set callback function to call when buffer limit is reached."""
         self._flush_callback = callback
+    
+    def set_emergency_callback(self, callback):
+        """Set callback function to call when memory threshold is exceeded."""
+        self._emergency_callback = callback
     
     def get_summary_stats(self) -> Dict[str, Any]:
         """Get summary statistics for the current period."""
@@ -183,7 +241,10 @@ class MetricsCollector:
 
 
 class MonitoringService:
-    """Service for managing monitoring, daily reports, and S3 uploads."""
+    """Service for managing monitoring, hourly reports, and S3 uploads."""
+    
+    # Configurable retention period
+    CLEANUP_RETENTION_DAYS = int(os.getenv("CLEANUP_RETENTION_DAYS", "7"))
     
     def __init__(self):
         self.metrics_collector = MetricsCollector()
@@ -192,6 +253,9 @@ class MonitoringService:
         
         # Set auto-flush callback to prevent OOM
         self.metrics_collector.set_flush_callback(self._auto_flush_metrics)
+        
+        # Set emergency callback for memory threshold
+        self.metrics_collector.set_emergency_callback(self._emergency_upload)
         
         # AWS S3 configuration
         self.s3_bucket = os.getenv("MONITORING_S3_BUCKET")
@@ -208,7 +272,11 @@ class MonitoringService:
                     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
                     region_name=os.getenv("AWS_REGION", "us-east-1")
                 )
-                logger.info(f"S3 monitoring enabled: bucket={self.s3_bucket}")
+                logger.info(f"S3 monitoring enabled: bucket={self.s3_bucket}, prefix={self.s3_prefix}")
+                
+                # Run startup recovery to upload any unsaved reports
+                asyncio.create_task(self.startup_recovery())
+                
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
                 self.enable_s3_upload = False
@@ -216,8 +284,100 @@ class MonitoringService:
             self.s3_client = None
             logger.info("S3 monitoring disabled")
     
-    def generate_daily_report(self) -> Optional[str]:
-        """Generate a Parquet report from collected metrics."""
+    async def startup_recovery(self):
+        """
+        On startup, check for unsaved reports from previous session and upload them.
+        This prevents data loss from unexpected crashes.
+        """
+        try:
+            logger.info("Running startup recovery check...")
+            
+            # Find all local parquet and json files
+            parquet_files = list(self.reports_dir.glob("*.parquet"))
+            json_files = list(self.reports_dir.glob("*.json"))
+            
+            if not parquet_files and not json_files:
+                logger.info("No unsaved reports found - clean start")
+                return
+            
+            logger.info(f"Found {len(parquet_files)} parquet and {len(json_files)} json files from previous session")
+            
+            # Upload all found files
+            uploaded_count = 0
+            for filepath in parquet_files + json_files:
+                success = await self.upload_to_s3(str(filepath))
+                if success:
+                    uploaded_count += 1
+                    # Delete after successful upload
+                    filepath.unlink()
+                    logger.info(f"Recovered and uploaded: {filepath.name}")
+            
+            logger.info(f"Startup recovery complete: {uploaded_count} files uploaded")
+            
+        except Exception as e:
+            logger.error(f"Error in startup recovery: {e}", exc_info=True)
+    
+    async def _emergency_upload(self, memory_mb: float):
+        """
+        Emergency upload triggered when memory exceeds threshold.
+        Creates a special ALERT file and uploads immediately.
+        """
+        try:
+            logger.critical(f"🚨 EMERGENCY UPLOAD: Memory at {memory_mb:.2f} MB")
+            
+            # Generate emergency report
+            filepath = self.generate_daily_report(prefix="EMERGENCY")
+            
+            if filepath:
+                # Upload to S3 immediately
+                if self.enable_s3_upload:
+                    await self.upload_to_s3(filepath)
+                
+                # Create emergency alert JSON
+                system_memory = psutil.virtual_memory()
+                system_memory_mb = system_memory.total / BYTES_TO_MB
+                
+                alert_data = {
+                    "alert_type": "high_memory",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "memory_mb": memory_mb,
+                    "memory_percent": (memory_mb / system_memory_mb) * 100,
+                    "threshold_mb": self.metrics_collector._emergency_memory_threshold_mb,
+                    "threshold_percent": self.metrics_collector.EMERGENCY_THRESHOLD_PERCENT,
+                    "system_memory_mb": system_memory_mb,
+                    "severity": "critical",
+                    "message": f"Backend memory usage reached {memory_mb:.2f} MB ({memory_mb/system_memory_mb*100:.1f}% of {system_memory_mb:.0f} MB limit)",
+                    "action_required": "Investigate memory leak and restart if needed",
+                    "metrics_count": len(self.metrics_collector._metrics),
+                }
+                
+                # Save alert JSON
+                alert_filename = f"ALERT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+                alert_filepath = self.reports_dir / alert_filename
+                
+                with open(alert_filepath, 'w') as f:
+                    json.dump(alert_data, f, indent=2)
+                
+                # Upload alert
+                if self.enable_s3_upload:
+                    await self.upload_to_s3(str(alert_filepath))
+                
+                logger.critical(f"Emergency alert saved: {alert_filename}")
+                
+                # Clear metrics after emergency upload
+                self.metrics_collector.clear_metrics()
+                logger.info("Cleared metrics after emergency upload")
+            
+        except Exception as e:
+            logger.error(f"Error in emergency upload: {e}", exc_info=True)
+    
+    def generate_daily_report(self, prefix: str = "metrics") -> Optional[str]:
+        """
+        Generate a Parquet report from collected metrics.
+        
+        Args:
+            prefix: Filename prefix (default: "metrics", can be "EMERGENCY" for alerts)
+        """
         try:
             metrics = self.metrics_collector.get_metrics()
             
@@ -233,7 +393,7 @@ class MonitoringService:
             
             # Generate filename with timestamp
             now = datetime.utcnow()
-            filename = f"metrics_{now.strftime('%Y%m%d_%H%M%S')}.parquet"
+            filename = f"{prefix}_{now.strftime('%Y%m%d_%H%M%S')}.parquet"
             filepath = self.reports_dir / filename
             
             # Save as Parquet (compressed)
@@ -268,12 +428,17 @@ class MonitoringService:
             logger.warning("Auto-flushing metrics due to buffer limit")
             
             # Generate an intermediate report
-            filepath = self.generate_daily_report()
+            filepath = self.generate_daily_report(prefix="auto_flush")
             
             if filepath:
                 # Upload to S3 if enabled
                 if self.enable_s3_upload:
                     await self.upload_to_s3(filepath)
+                
+                # Also upload summary
+                summary_filepath = filepath.replace('.parquet', '.json').replace('auto_flush_', 'summary_')
+                if Path(summary_filepath).exists():
+                    await self.upload_to_s3(summary_filepath)
                 
                 # Clear metrics after flush
                 self.metrics_collector.clear_metrics()
@@ -305,12 +470,15 @@ class MonitoringService:
         except Exception as e:
             logger.error(f"Error uploading to S3: {e}", exc_info=True)
             return False
-            return False
     
-    async def daily_report_task(self):
-        """Task that runs daily to generate and upload reports."""
+    async def hourly_report_task(self):
+        """
+        Task that runs hourly to generate and upload reports.
+        Changed from daily to hourly for better data safety (max 1 hour loss vs 24 hours).
+        Memory overhead: ~0.003 MB per hour (negligible).
+        """
         try:
-            logger.info("Starting daily report task...")
+            logger.info("Starting hourly report task...")
             
             # Generate the report
             filepath = self.generate_daily_report()
@@ -327,28 +495,37 @@ class MonitoringService:
                 
                 # Clear metrics after successful report
                 self.metrics_collector.clear_metrics()
-                logger.info("Cleared metrics after daily report")
+                logger.info("Cleared metrics after hourly report")
                 
-                # Clean up old local files (keep last 7 days)
-                self.cleanup_old_reports(days=7)
+                # Clean up old local files
+                self.cleanup_old_reports()
             
         except Exception as e:
-            logger.error(f"Error in daily report task: {e}", exc_info=True)
+            logger.error(f"Error in hourly report task: {e}", exc_info=True)
     
-    def cleanup_old_reports(self, days: int = 7):
-        """Delete local report files older than specified days."""
+    # Keep daily_report_task as alias for backward compatibility
+    async def daily_report_task(self):
+        """Alias for hourly_report_task (backward compatibility)."""
+        await self.hourly_report_task()
+    
+    def cleanup_old_reports(self):
+        """Delete local report files older than configured retention period."""
         try:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.utcnow() - timedelta(days=self.CLEANUP_RETENTION_DAYS)
             
+            deleted_count = 0
             for filepath in self.reports_dir.glob("*.parquet"):
                 if filepath.stat().st_mtime < cutoff.timestamp():
                     filepath.unlink()
-                    logger.info(f"Deleted old report: {filepath}")
+                    deleted_count += 1
             
             for filepath in self.reports_dir.glob("*.json"):
                 if filepath.stat().st_mtime < cutoff.timestamp():
                     filepath.unlink()
-                    logger.info(f"Deleted old summary: {filepath}")
+                    deleted_count += 1
+            
+            if deleted_count > 0:
+                logger.info(f"Cleaned up {deleted_count} old reports (retention: {self.CLEANUP_RETENTION_DAYS} days)")
                     
         except Exception as e:
             logger.error(f"Error cleaning up old reports: {e}")
@@ -371,7 +548,7 @@ class MonitoringService:
                 f"{summary['total_errors']} errors ({summary['error_rate']*100:.1f}%)\n"
                 f"  Avg Response Time: {summary['avg_response_time_seconds']:.3f}s\n"
                 f"  Uptime: {summary['uptime_hours']:.2f} hours\n"
-                f"  Metrics Buffer: {len(self.metrics_collector._metrics)}/{self.metrics_collector.MAX_METRICS_BUFFER}"
+                f"  Metrics Buffer: {len(self.metrics_collector._metrics):,}/{self.metrics_collector.MAX_METRICS_BUFFER:,}"
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}")

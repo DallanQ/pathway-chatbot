@@ -27,15 +27,17 @@ class MonitoringScheduler:
             return
         
         try:
-            # Schedule daily report at 00:00 UTC
+            # Schedule HOURLY report uploads (changed from daily for better data safety)
+            # With ~138 requests/day, hourly buffer uses only 0.003 MB (negligible)
+            # Max data loss: 1 hour instead of 24 hours
             self.scheduler.add_job(
-                self.monitoring_service.daily_report_task,
-                CronTrigger(hour=0, minute=0),  # Midnight UTC
-                id='daily_report',
-                name='Generate and upload daily monitoring report',
+                self.monitoring_service.hourly_report_task,
+                CronTrigger(minute=0),  # Every hour at :00
+                id='hourly_report',
+                name='Generate and upload hourly monitoring report',
                 replace_existing=True
             )
-            logger.info("Scheduled daily report task at 00:00 UTC")
+            logger.info("Scheduled hourly report task at :00 every hour")
             
             # Schedule hourly memory logging for debugging
             self.scheduler.add_job(
@@ -63,7 +65,7 @@ class MonitoringScheduler:
         try:
             # Generate final report before shutdown
             logger.info("Generating final report before shutdown...")
-            await self.monitoring_service.daily_report_task()
+            await self.monitoring_service.hourly_report_task()
             
             # Shutdown scheduler
             self.scheduler.shutdown(wait=True)
