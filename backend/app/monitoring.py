@@ -12,7 +12,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, deque
 import asyncio
 from threading import Lock
 import json
@@ -22,12 +22,15 @@ logger = logging.getLogger("uvicorn")
 
 class MetricsCollector:
     """Collects and stores metrics in memory with thread-safe operations."""
-    
+
     # Maximum number of metrics to store before auto-flush
-    MAX_METRICS_BUFFER = 10000
-    
+    # Reduced from 10000 to 1000 to prevent memory leaks on 2GB instance
+    MAX_METRICS_BUFFER = 1000
+
     def __init__(self):
-        self._metrics: List[Dict[str, Any]] = []
+        # Use deque with maxlen for automatic eviction of old metrics
+        # This prevents unbounded memory growth
+        self._metrics: deque = deque(maxlen=self.MAX_METRICS_BUFFER)
         self._lock = Lock()
         self._process = psutil.Process()
         self._start_time = time.time()
@@ -149,7 +152,7 @@ class MetricsCollector:
     def get_metrics(self) -> List[Dict[str, Any]]:
         """Get all collected metrics (thread-safe)."""
         with self._lock:
-            return self._metrics.copy()
+            return list(self._metrics)
     
     def clear_metrics(self):
         """Clear all collected metrics (thread-safe)."""
