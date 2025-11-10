@@ -5,6 +5,7 @@ Scheduler for running periodic monitoring tasks.
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 
 from app.monitoring import get_monitoring_service
@@ -46,7 +47,17 @@ class MonitoringScheduler:
                 replace_existing=True
             )
             logger.info("Scheduled hourly memory logging")
-            
+
+            # Schedule periodic garbage collection every 10 minutes
+            self.scheduler.add_job(
+                self.monitoring_service.periodic_gc,
+                IntervalTrigger(minutes=10),
+                id='periodic_gc',
+                name='Periodic garbage collection',
+                replace_existing=True
+            )
+            logger.info("Scheduled periodic garbage collection every 10 minutes")
+
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True

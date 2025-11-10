@@ -5,6 +5,7 @@ from app.config import DATA_DIR
 
 load_dotenv()
 
+import gc
 import logging
 import os
 
@@ -76,6 +77,12 @@ app.include_router(file_upload_router, prefix="/api/chat/upload")
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
+    # Configure garbage collection for memory-constrained environment (2GB instance)
+    # More aggressive thresholds than default (700, 10, 10)
+    gc.set_threshold(700, 10, 5)
+    gc.enable()
+    logger.info(f"Garbage collection configured with thresholds: {gc.get_threshold()}")
+
     logger.info("Starting monitoring scheduler...")
     monitoring_scheduler.start()
     logger.info("Application startup complete")

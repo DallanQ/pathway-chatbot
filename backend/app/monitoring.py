@@ -7,6 +7,7 @@ Generates daily Parquet reports and uploads to S3.
 import os
 import logging
 import time
+import gc
 import psutil
 import pandas as pd
 from datetime import datetime, timedelta
@@ -361,7 +362,7 @@ class MonitoringService:
         try:
             metrics = self.metrics_collector.collect_system_metrics()
             summary = self.metrics_collector.get_summary_stats()
-            
+
             logger.info(
                 f"System Health Check:\n"
                 f"  Memory: {metrics['memory_rss_mb']:.2f} MB "
@@ -378,6 +379,33 @@ class MonitoringService:
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}")
+
+    def periodic_gc(self):
+        """Periodic garbage collection to free memory (runs every 10 minutes)."""
+        try:
+            # Collect memory metrics before GC
+            metrics_before = self.metrics_collector.collect_system_metrics()
+            memory_before = metrics_before.get('memory_rss_mb', 0)
+
+            # Force garbage collection
+            collected = gc.collect()
+
+            # Collect memory metrics after GC
+            metrics_after = self.metrics_collector.collect_system_metrics()
+            memory_after = metrics_after.get('memory_rss_mb', 0)
+
+            # Calculate memory freed
+            memory_freed = memory_before - memory_after
+
+            logger.info(
+                f"Periodic GC completed: "
+                f"collected {collected} objects, "
+                f"memory: {memory_before:.2f} MB -> {memory_after:.2f} MB "
+                f"(freed {memory_freed:.2f} MB)"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in periodic GC: {e}")
 
 
 # Global monitoring service instance
