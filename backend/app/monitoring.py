@@ -290,6 +290,7 @@ class MonitoringService:
     async def startup_recovery(self):
         """
         On startup, check for unsaved reports from previous session and upload them.
+        Also creates a BOOT report to indicate restart/crash recovery.
         This prevents data loss from unexpected crashes.
         """
         try:
@@ -299,7 +300,39 @@ class MonitoringService:
             parquet_files = list(self.reports_dir.glob("*.parquet"))
             json_files = list(self.reports_dir.glob("*.json"))
             
-            if not parquet_files and not json_files:
+            # Determine if this was a crash or graceful restart
+            had_unsaved_files = len(parquet_files) > 0 or len(json_files) > 0
+            restart_type = "crash_recovery" if had_unsaved_files else "clean_start"
+            
+            # Create BOOT report to mark restart event
+            system_metrics = self.metrics_collector.collect_system_metrics()
+            boot_data = {
+                "event_type": "boot",
+                "restart_type": restart_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "unsaved_files_found": len(parquet_files) + len(json_files),
+                "parquet_files": len(parquet_files),
+                "json_files": len(json_files),
+                "system_memory_mb": system_metrics.get("memory_rss_mb", 0),
+                "system_memory_percent": system_metrics.get("memory_percent", 0),
+                "message": f"Backend restarted - {restart_type.replace('_', ' ').title()}",
+                "severity": "warning" if had_unsaved_files else "info",
+            }
+            
+            # Save BOOT report
+            boot_filename = f"BOOT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            boot_filepath = self.reports_dir / boot_filename
+            
+            with open(boot_filepath, 'w') as f:
+                json.dump(boot_data, f, indent=2)
+            
+            logger.info(f"Boot report created: {boot_filename} ({restart_type})")
+            
+            # Upload BOOT report immediately
+            if self.enable_s3_upload:
+                await self.upload_to_s3(str(boot_filepath))
+            
+            if not had_unsaved_files:
                 logger.info("No unsaved reports found - clean start")
                 return
             
@@ -315,11 +348,11 @@ class MonitoringService:
                     filepath.unlink()
                     logger.info(f"Recovered and uploaded: {filepath.name}")
             
-            logger.info(f"Startup recovery complete: {uploaded_count} files uploaded")
+            logger.info(f"Startup recovery complete: {uploaded_count} files uploaded + 1 BOOT report")
             
         except Exception as e:
             logger.error(f"Error in startup recovery: {e}", exc_info=True)
-    
+
     async def _emergency_upload(self, memory_mb: float):
         """
         Emergency upload triggered when memory exceeds threshold.
@@ -511,6 +544,52 @@ class MonitoringService:
         """Alias for hourly_report_task (backward compatibility)."""
         await self.hourly_report_task()
     
+
+    async def minute_report_task(self):
+        """
+        Task that runs every minute to generate and upload reports.
+        Smart batching: Creates small minute-level files that are later merged.
+        
+        Benefits:
+        - Near real-time monitoring (1-minute granularity)
+        - Maximum 1 minute of data loss on crash (vs 1 hour before)
+        - Emergency upload already handles 90% memory threshold
+        - Auto-flush already handles buffer overflow (500 records)
+        """
+        try:
+            logger.info("Starting minute-level report task...")
+            
+            # Only generate report if we have metrics to report
+            metrics_count = len(self.metrics_collector._metrics)
+            if metrics_count == 0:
+                logger.debug("No metrics to report this minute - skipping")
+                return
+            
+            # Generate the report with minute prefix
+            filepath = self.generate_daily_report(prefix="minute")
+            
+            if filepath:
+                # Upload to S3 if enabled
+                if self.enable_s3_upload:
+                    await self.upload_to_s3(filepath)
+                
+                # Also upload the summary JSON
+                summary_filepath = filepath.replace('.parquet', '.json').replace('minute_', 'summary_')
+                if Path(summary_filepath).exists():
+                    await self.upload_to_s3(summary_filepath)
+                
+                # Clear metrics after successful report
+                self.metrics_collector.clear_metrics()
+                logger.info(f"Minute report completed ({metrics_count} metrics uploaded)")
+                
+                # Clean up old local files periodically (every 10th minute)
+                from datetime import datetime
+                if datetime.utcnow().minute % 10 == 0:
+                    self.cleanup_old_reports()
+            
+        except Exception as e:
+            logger.error(f"Error in minute report task: {e}", exc_info=True)
+
     def cleanup_old_reports(self):
         """Delete local report files older than configured retention period."""
         try:

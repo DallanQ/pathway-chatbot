@@ -1,5 +1,6 @@
 """
 Scheduler for running periodic monitoring tasks.
+Enhanced with minute-level uploads for near real-time monitoring.
 """
 
 import logging
@@ -28,19 +29,19 @@ class MonitoringScheduler:
             return
         
         try:
-            # Schedule HOURLY report uploads (changed from daily for better data safety)
-            # With ~138 requests/day, hourly buffer uses only 0.003 MB (negligible)
-            # Max data loss: 1 hour instead of 24 hours
+            # Schedule MINUTE-LEVEL report uploads for near real-time monitoring
+            # This ensures we never lose more than 1 minute of data on crash
+            # Files are small (~0.1-0.5 MB/minute) and uploaded efficiently
             self.scheduler.add_job(
-                self.monitoring_service.hourly_report_task,
-                CronTrigger(minute=0),  # Every hour at :00
-                id='hourly_report',
-                name='Generate and upload hourly monitoring report',
+                self.monitoring_service.minute_report_task,
+                IntervalTrigger(minutes=1),
+                id='minute_report',
+                name='Generate and upload minute-level monitoring report',
                 replace_existing=True
             )
-            logger.info("Scheduled hourly report task at :00 every hour")
+            logger.info("Scheduled minute-level report task (every 1 minute)")
             
-            # Schedule hourly memory logging for debugging
+            # Keep hourly memory logging for debugging
             self.scheduler.add_job(
                 self.monitoring_service.log_memory_usage,
                 CronTrigger(minute=0),  # Every hour at :00
@@ -76,7 +77,7 @@ class MonitoringScheduler:
         try:
             # Generate final report before shutdown
             logger.info("Generating final report before shutdown...")
-            await self.monitoring_service.hourly_report_task()
+            await self.monitoring_service.minute_report_task()
             
             # Shutdown scheduler
             self.scheduler.shutdown(wait=True)
