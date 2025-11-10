@@ -51,7 +51,8 @@ async def chat(
 ):
     risk_level = None
     security_details = {}
-    
+    chat_engine = None
+
     try:
         last_message_content = data.get_last_message_content()
         
@@ -200,6 +201,14 @@ async def chat(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error in chat engine: {e}",
         ) from e
+    finally:
+        # Ensure chat engine memory is cleaned up after each request
+        if chat_engine is not None:
+            try:
+                chat_engine.reset()
+                logger.debug("Chat engine memory buffer cleared")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to reset chat engine: {cleanup_error}")
 
 
 # non-streaming endpoint - delete if not needed

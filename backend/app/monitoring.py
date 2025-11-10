@@ -7,12 +7,13 @@ Generates daily Parquet reports and uploads to S3.
 import os
 import logging
 import time
+import gc
 import psutil
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, deque
 import asyncio
 from threading import Lock
 import json
@@ -22,12 +23,15 @@ logger = logging.getLogger("uvicorn")
 
 class MetricsCollector:
     """Collects and stores metrics in memory with thread-safe operations."""
-    
+
     # Maximum number of metrics to store before auto-flush
-    MAX_METRICS_BUFFER = 10000
-    
+    # Reduced from 10000 to 1000 to prevent memory leaks on 2GB instance
+    MAX_METRICS_BUFFER = 1000
+
     def __init__(self):
-        self._metrics: List[Dict[str, Any]] = []
+        # Use deque with maxlen for automatic eviction of old metrics
+        # This prevents unbounded memory growth
+        self._metrics: deque = deque(maxlen=self.MAX_METRICS_BUFFER)
         self._lock = Lock()
         self._process = psutil.Process()
         self._start_time = time.time()
@@ -149,7 +153,7 @@ class MetricsCollector:
     def get_metrics(self) -> List[Dict[str, Any]]:
         """Get all collected metrics (thread-safe)."""
         with self._lock:
-            return self._metrics.copy()
+            return list(self._metrics)
     
     def clear_metrics(self):
         """Clear all collected metrics (thread-safe)."""
@@ -358,7 +362,7 @@ class MonitoringService:
         try:
             metrics = self.metrics_collector.collect_system_metrics()
             summary = self.metrics_collector.get_summary_stats()
-            
+
             logger.info(
                 f"System Health Check:\n"
                 f"  Memory: {metrics['memory_rss_mb']:.2f} MB "
@@ -375,6 +379,33 @@ class MonitoringService:
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}")
+
+    def periodic_gc(self):
+        """Periodic garbage collection to free memory (runs every 10 minutes)."""
+        try:
+            # Collect memory metrics before GC
+            metrics_before = self.metrics_collector.collect_system_metrics()
+            memory_before = metrics_before.get('memory_rss_mb', 0)
+
+            # Force garbage collection
+            collected = gc.collect()
+
+            # Collect memory metrics after GC
+            metrics_after = self.metrics_collector.collect_system_metrics()
+            memory_after = metrics_after.get('memory_rss_mb', 0)
+
+            # Calculate memory freed
+            memory_freed = memory_before - memory_after
+
+            logger.info(
+                f"Periodic GC completed: "
+                f"collected {collected} objects, "
+                f"memory: {memory_before:.2f} MB -> {memory_after:.2f} MB "
+                f"(freed {memory_freed:.2f} MB)"
+            )
+
+        except Exception as e:
+            logger.error(f"Error in periodic GC: {e}")
 
 
 # Global monitoring service instance
