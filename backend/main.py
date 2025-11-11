@@ -85,6 +85,11 @@ async def startup_event():
 
     logger.info("Starting monitoring scheduler...")
     monitoring_scheduler.start()
+    
+    # Run startup recovery to upload any unsaved reports from previous session
+    logger.info("Running monitoring startup recovery...")
+    await monitoring_scheduler.monitoring_service.startup_recovery()
+    
     logger.info("Application startup complete")
 
 
@@ -92,7 +97,7 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down monitoring scheduler...")
-    monitoring_scheduler.shutdown()
+    await monitoring_scheduler.shutdown()
     logger.info("Application shutdown complete")
 
 

@@ -271,8 +271,8 @@ class MonitoringService:
                 )
                 logger.info(f"S3 monitoring enabled: bucket={self.s3_bucket}, prefix={self.s3_prefix}")
                 
-                # Run startup recovery to upload any unsaved reports
-                asyncio.create_task(self.startup_recovery())
+                # Note: startup_recovery() will be called from FastAPI startup event
+                # where an event loop is available
                 
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
@@ -608,27 +608,39 @@ class MonitoringService:
             logger.error(f"Error cleaning up old reports: {e}")
     
     def log_memory_usage(self):
-        """Log current memory usage and system health (useful for debugging crashes)."""
+        """Log current memory usage and system health (use safe lookups).
+
+        Uses `get_summary_stats()` which includes system metrics. This
+        avoids KeyError when `collect_system_metrics()` fails and returns
+        an empty dict.
+        """
         try:
-            metrics = self.metrics_collector.collect_system_metrics()
             summary = self.metrics_collector.get_summary_stats()
+
+            memory_mb = summary.get("memory_rss_mb", 0.0)
+            memory_percent = summary.get("memory_percent", 0.0)
+            cpu_percent = summary.get("cpu_percent", 0.0)
+            system_cpu = summary.get("system_cpu_percent", 0.0)
+            num_threads = summary.get("num_threads", 0)
+            num_connections = summary.get("num_connections", 0)
+            total_requests = summary.get("total_requests", 0)
+            total_errors = summary.get("total_errors", 0)
+            error_rate = summary.get("error_rate", 0.0)
+            avg_resp = summary.get("avg_response_time_seconds", 0.0)
+            uptime_hours = summary.get("uptime_hours", 0.0)
 
             logger.info(
                 f"System Health Check:\n"
-                f"  Memory: {metrics['memory_rss_mb']:.2f} MB "
-                f"({metrics['memory_percent']:.2f}% of system)\n"
-                f"  CPU: Process={metrics['cpu_percent']:.2f}%, "
-                f"System={metrics['system_cpu_percent']:.2f}%\n"
-                f"  Threads: {metrics['num_threads']}, "
-                f"Connections: {metrics['num_connections']}\n"
-                f"  Requests: {summary['total_requests']} total, "
-                f"{summary['total_errors']} errors ({summary['error_rate']*100:.1f}%)\n"
-                f"  Avg Response Time: {summary['avg_response_time_seconds']:.3f}s\n"
-                f"  Uptime: {summary['uptime_hours']:.2f} hours\n"
+                f"  Memory: {memory_mb:.2f} MB ({memory_percent:.2f}% of system)\n"
+                f"  CPU: Process={cpu_percent:.2f}%, System={system_cpu:.2f}%\n"
+                f"  Threads: {num_threads}, Connections: {num_connections}\n"
+                f"  Requests: {total_requests} total, {total_errors} errors ({error_rate*100:.1f}%)\n"
+                f"  Avg Response Time: {avg_resp:.3f}s\n"
+                f"  Uptime: {uptime_hours:.2f} hours\n"
                 f"  Metrics Buffer: {len(self.metrics_collector._metrics):,}/{self.metrics_collector.MAX_METRICS_BUFFER:,}"
             )
-        except Exception as e:
-            logger.error(f"Error logging memory usage: {e}")
+        except Exception:
+            logger.exception("Error logging memory usage")
 
     def periodic_gc(self):
         """Periodic garbage collection to free memory (runs every 10 minutes)."""
