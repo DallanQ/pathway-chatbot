@@ -1,13 +1,7 @@
 """
 Comprehensive monitoring system for the Pathway Chatbot backend.
 Tracks memory usage, performance metrics, request patterns, and system health.
-Generates hourly Parquet reports and uploads to S3.
-
-ENHANCEMENTS:
-- Hourly uploads (reduced from daily for better data safety)
-- 90% memory emergency trigger (prevents OOM crashes)
-- Startup recovery (uploads unsaved reports from previous session)
-- All thresholds configurable via environment variables
+Generates Parquet reports and uploads to S3.
 """
 
 import os
@@ -244,7 +238,7 @@ class MetricsCollector:
 
 
 class MonitoringService:
-    """Service for managing monitoring, hourly reports, and S3 uploads."""
+    """Service for managing monitoring, periodic reports, and S3 uploads."""
     
     # Configurable retention period
     CLEANUP_RETENTION_DAYS = int(os.getenv("CLEANUP_RETENTION_DAYS", "7"))
@@ -411,8 +405,14 @@ class MonitoringService:
         """
         Generate a Parquet report from collected metrics.
         
+        Note: Despite the name "daily", this is called on various schedules (periodic, auto-flush, emergency).
+        Legacy name kept for backward compatibility.
+        
         Args:
-            prefix: Filename prefix (default: "metrics", can be "EMERGENCY" for alerts)
+            prefix: Filename prefix (default: "metrics", can be "EMERGENCY", "auto_flush", "minute", etc.)
+        
+        Returns:
+            Path to the generated report file, or None if no metrics to report
         """
         try:
             metrics = self.metrics_collector.get_metrics()
@@ -455,7 +455,7 @@ class MonitoringService:
             return str(filepath)
             
         except Exception as e:
-            logger.error(f"Error generating daily report: {e}", exc_info=True)
+            logger.error(f"Error generating monitoring report: {e}", exc_info=True)
             return None
     
     async def _auto_flush_metrics(self):
@@ -509,12 +509,12 @@ class MonitoringService:
     
     async def hourly_report_task(self):
         """
-        Task that runs hourly to generate and upload reports.
-        Changed from daily to hourly for better data safety (max 1 hour loss vs 24 hours).
-        Memory overhead: ~0.003 MB per hour (negligible).
+        Task that generates and uploads periodic reports.
+        Note: Despite the name, this is scheduled every 5 minutes for better data safety.
+        Legacy name kept for backward compatibility.
         """
         try:
-            logger.info("Starting hourly report task...")
+            logger.info("Starting periodic report task...")
             
             # Generate the report
             filepath = self.generate_daily_report()
@@ -531,38 +531,33 @@ class MonitoringService:
                 
                 # Clear metrics after successful report
                 self.metrics_collector.clear_metrics()
-                logger.info("Cleared metrics after hourly report")
+                logger.info("Cleared metrics after periodic report")
                 
                 # Clean up old local files
                 self.cleanup_old_reports()
             
         except Exception as e:
-            logger.error(f"Error in hourly report task: {e}", exc_info=True)
+            logger.error(f"Error in periodic report task: {e}", exc_info=True)
     
     # Keep daily_report_task as alias for backward compatibility
     async def daily_report_task(self):
-        """Alias for hourly_report_task (backward compatibility)."""
+        """Legacy alias for hourly_report_task (backward compatibility only)."""
         await self.hourly_report_task()
     
 
     async def minute_report_task(self):
         """
-        Task that runs every minute to generate and upload reports.
-        Smart batching: Creates small minute-level files that are later merged.
-        
-        Benefits:
-        - Near real-time monitoring (1-minute granularity)
-        - Maximum 1 minute of data loss on crash (vs 1 hour before)
-        - Emergency upload already handles 90% memory threshold
-        - Auto-flush already handles buffer overflow (500 records)
+        Periodic report task that generates and uploads monitoring data.
+        Currently scheduled to run every 5 minutes (configurable via scheduler).
+        Creates small batch files that preserve metrics even if the service crashes.
         """
         try:
-            logger.info("Starting minute-level report task...")
+            logger.info("Starting periodic report task...")
             
             # Only generate report if we have metrics to report
             metrics_count = len(self.metrics_collector._metrics)
             if metrics_count == 0:
-                logger.debug("No metrics to report this minute - skipping")
+                logger.debug("No metrics to report this period - skipping")
                 return
             
             # Generate the report with minute prefix
@@ -580,15 +575,15 @@ class MonitoringService:
                 
                 # Clear metrics after successful report
                 self.metrics_collector.clear_metrics()
-                logger.info(f"Minute report completed ({metrics_count} metrics uploaded)")
+                logger.info(f"Periodic report completed ({metrics_count} metrics uploaded)")
                 
-                # Clean up old local files periodically (every 10th minute)
+                # Clean up old local files periodically (every 10th cycle at minute :00, :10, :20, etc.)
                 from datetime import datetime
                 if datetime.utcnow().minute % 10 == 0:
                     self.cleanup_old_reports()
             
         except Exception as e:
-            logger.error(f"Error in minute report task: {e}", exc_info=True)
+            logger.error(f"Error in periodic report task: {e}", exc_info=True)
 
     def cleanup_old_reports(self):
         """Delete local report files older than configured retention period."""

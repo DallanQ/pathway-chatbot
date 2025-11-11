@@ -29,17 +29,17 @@ class MonitoringScheduler:
             return
         
         try:
-            # Schedule MINUTE-LEVEL report uploads for near real-time monitoring
-            # This ensures we never lose more than 1 minute of data on crash
-            # Files are small (~0.1-0.5 MB/minute) and uploaded efficiently
+            # Schedule periodic report uploads for near real-time monitoring
+            # This ensures we never lose more than 5 minutes of data on crash
+            # Files are small and uploaded efficiently every 5 minutes
             self.scheduler.add_job(
                 self.monitoring_service.minute_report_task,
                 IntervalTrigger(minutes=5),
                 id='minute_report',
-                name='Generate and upload minute-level monitoring report',
+                name='Generate and upload monitoring report every 5 minutes',
                 replace_existing=True
             )
-            logger.info("Scheduled minute-level report task (every 1 minute)")
+            logger.info("Scheduled periodic report task (every 5 minutes)")
             
             # Keep hourly memory logging for debugging
             self.scheduler.add_job(
