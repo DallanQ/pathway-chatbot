@@ -17,8 +17,6 @@ from collections import defaultdict, deque
 import asyncio
 from threading import Lock
 import json
-import sys
-import tracemalloc
 
 logger = logging.getLogger("uvicorn")
 
@@ -43,15 +41,6 @@ class MetricsCollector:
         self._start_time = time.time()
         self._flush_callback = None
         self._emergency_callback = None
-        
-        # Memory profiling state
-        self._last_memory_snapshot = None
-        self._enable_tracemalloc = os.getenv("ENABLE_MEMORY_PROFILING", "false").lower() == "true"
-        
-        # Start tracemalloc if memory profiling enabled
-        if self._enable_tracemalloc and not tracemalloc.is_tracing():
-            tracemalloc.start(25)  # Track top 25 stack frames
-            logger.info("Memory profiling enabled (tracemalloc started)")
         
         # Calculate emergency threshold dynamically based on system memory
         # This allows the threshold to adapt if memory limits change
@@ -136,11 +125,6 @@ class MetricsCollector:
             # Add basic system metrics
             system_metrics = self.metrics_collector.collect_system_metrics()
             heartbeat_data.update(system_metrics)
-            
-            # Add memory profiling if enabled
-            if self.metrics_collector._enable_tracemalloc:
-                memory_profile = self.get_memory_profile()
-                heartbeat_data['memory_profile'] = memory_profile
             
             # Create heartbeat file
             heartbeat_filename = f"HEARTBEAT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
@@ -496,12 +480,6 @@ class MonitoringService:
             
             # Also save a summary JSON
             summary = self.metrics_collector.get_summary_stats()
-            
-            # Add memory profiling if enabled
-            if self.metrics_collector._enable_tracemalloc:
-                memory_profile = self.get_memory_profile()
-                summary['memory_profile'] = memory_profile
-            
             summary_filename = f"summary_{now.strftime('%Y%m%d_%H%M%S')}.json"
             summary_filepath = self.reports_dir / summary_filename
             
@@ -708,71 +686,6 @@ class MonitoringService:
             )
         except Exception:
             logger.exception("Error logging memory usage")
-
-    def get_memory_profile(self) -> dict:
-        """
-        Get detailed memory profiling information for leak detection.
-        
-        Returns:
-            Dictionary containing:
-            - top_object_types: Count of objects by type (top 20)
-            - total_tracked_objects: Total number of objects tracked by GC
-            - gc_stats: Garbage collector statistics
-            - top_memory_allocations: Largest memory allocations (if tracemalloc enabled)
-            - memory_delta: Change since last snapshot (if tracemalloc enabled)
-        """
-        try:
-            from collections import Counter
-            
-            profile = {}
-            
-            # Object counts by type
-            all_objects = gc.get_objects()
-            type_counts = Counter(type(obj).__name__ for obj in all_objects)
-            profile['top_object_types'] = dict(type_counts.most_common(20))
-            profile['total_tracked_objects'] = len(all_objects)
-            
-            # GC stats
-            gc_counts = gc.get_count()
-            profile['gc_stats'] = {
-                'generation0': gc_counts[0],
-                'generation1': gc_counts[1],
-                'generation2': gc_counts[2],
-                'thresholds': gc.get_threshold(),
-            }
-            
-            # tracemalloc snapshot (if enabled)
-            if tracemalloc.is_tracing():
-                snapshot = tracemalloc.take_snapshot()
-                top_stats = snapshot.statistics('lineno')[:10]
-                profile['top_memory_allocations'] = [
-                    {
-                        'file': stat.traceback.format()[0] if stat.traceback else 'unknown',
-                        'size_mb': round(stat.size / 1024 / 1024, 3),
-                        'count': stat.count
-                    }
-                    for stat in top_stats
-                ]
-                
-                # Calculate delta from last snapshot
-                if self.metrics_collector._last_memory_snapshot:
-                    top_diff = snapshot.compare_to(self.metrics_collector._last_memory_snapshot, 'lineno')[:10]
-                    profile['memory_delta'] = [
-                        {
-                            'file': stat.traceback.format()[0] if stat.traceback else 'unknown',
-                            'size_diff_mb': round(stat.size_diff / 1024 / 1024, 3),
-                            'count_diff': stat.count_diff
-                        }
-                        for stat in top_diff
-                    ]
-                
-                # Store snapshot for next comparison
-                self.metrics_collector._last_memory_snapshot = snapshot
-            
-            return profile
-        except Exception as e:
-            logger.error(f"Error getting memory profile: {e}")
-            return {}
 
     def periodic_gc(self):
         """Periodic garbage collection to free memory (runs every 10 minutes)."""
