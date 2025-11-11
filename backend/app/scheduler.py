@@ -1,5 +1,6 @@
 """
 Scheduler for running periodic monitoring tasks.
+Enhanced with minute-level uploads for near real-time monitoring.
 """
 
 import logging
@@ -28,17 +29,19 @@ class MonitoringScheduler:
             return
         
         try:
-            # Schedule daily report at 00:00 UTC
+            # Schedule periodic report uploads for near real-time monitoring
+            # This ensures we never lose more than 5 minutes of data on crash
+            # Files are small and uploaded efficiently every 5 minutes
             self.scheduler.add_job(
-                self.monitoring_service.daily_report_task,
-                CronTrigger(hour=0, minute=0),  # Midnight UTC
-                id='daily_report',
-                name='Generate and upload daily monitoring report',
+                self.monitoring_service.minute_report_task,
+                IntervalTrigger(minutes=5),
+                id='minute_report',
+                name='Generate and upload monitoring report every 5 minutes',
                 replace_existing=True
             )
-            logger.info("Scheduled daily report task at 00:00 UTC")
+            logger.info("Scheduled periodic report task (every 5 minutes)")
             
-            # Schedule hourly memory logging for debugging
+            # Keep hourly memory logging for debugging
             self.scheduler.add_job(
                 self.monitoring_service.log_memory_usage,
                 CronTrigger(minute=0),  # Every hour at :00
@@ -74,7 +77,7 @@ class MonitoringScheduler:
         try:
             # Generate final report before shutdown
             logger.info("Generating final report before shutdown...")
-            await self.monitoring_service.daily_report_task()
+            await self.monitoring_service.minute_report_task()
             
             # Shutdown scheduler
             self.scheduler.shutdown(wait=True)
