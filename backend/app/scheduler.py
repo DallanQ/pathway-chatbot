@@ -34,7 +34,7 @@ class MonitoringScheduler:
             # Files are small (~0.1-0.5 MB/minute) and uploaded efficiently
             self.scheduler.add_job(
                 self.monitoring_service.minute_report_task,
-                IntervalTrigger(minutes=1),
+                IntervalTrigger(minutes=5),
                 id='minute_report',
                 name='Generate and upload minute-level monitoring report',
                 replace_existing=True
