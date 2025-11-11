@@ -17,6 +17,8 @@ from collections import defaultdict, deque
 import asyncio
 from threading import Lock
 import json
+import sys
+import tracemalloc
 
 logger = logging.getLogger("uvicorn")
 
@@ -41,6 +43,15 @@ class MetricsCollector:
         self._start_time = time.time()
         self._flush_callback = None
         self._emergency_callback = None
+        
+        # Memory profiling state
+        self._last_memory_snapshot = None
+        self._enable_tracemalloc = os.getenv("ENABLE_MEMORY_PROFILING", "false").lower() == "true"
+        
+        # Start tracemalloc if memory profiling enabled
+        if self._enable_tracemalloc and not tracemalloc.is_tracing():
+            tracemalloc.start(25)  # Track top 25 stack frames
+            logger.info("Memory profiling enabled (tracemalloc started)")
         
         # Calculate emergency threshold dynamically based on system memory
         # This allows the threshold to adapt if memory limits change
@@ -105,7 +116,47 @@ class MetricsCollector:
                 "uptime_seconds": time.time() - self._start_time,
             }
         except Exception as e:
-            logger.error(f"Error collecting system metrics: {e}")
+            logger.error(f"Error during startup recovery: {e}", exc_info=True)
+    
+    async def _upload_heartbeat(self):
+        """
+        Upload a heartbeat file to S3 to prove the service is alive.
+        Called when no metrics are collected during a period but we still
+        want to demonstrate the service is running.
+        """
+        try:
+            # Create heartbeat data with timestamp and system info
+            heartbeat_data = {
+                "type": "heartbeat",
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "idle",
+                "message": "Service is alive but no requests in this period"
+            }
+            
+            # Add basic system metrics
+            system_metrics = self.metrics_collector.collect_system_metrics()
+            heartbeat_data.update(system_metrics)
+            
+            # Add memory profiling if enabled
+            if self.metrics_collector._enable_tracemalloc:
+                memory_profile = self.get_memory_profile()
+                heartbeat_data['memory_profile'] = memory_profile
+            
+            # Create heartbeat file
+            heartbeat_filename = f"HEARTBEAT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            heartbeat_filepath = self.reports_dir / heartbeat_filename
+            
+            with open(heartbeat_filepath, 'w') as f:
+                json.dump(heartbeat_data, f, indent=2)
+            
+            # Upload to S3
+            await self.upload_to_s3(str(heartbeat_filepath))
+            logger.info(f"Heartbeat uploaded: {heartbeat_filename} (no metrics this period)")
+            
+        except Exception as e:
+            logger.error(f"Error uploading heartbeat: {e}", exc_info=True)
+    
+    async def upload_to_s3(self, filepath: str) -> bool:
             return {}
     
     def check_memory_threshold(self, memory_rss_mb: float) -> bool:
@@ -258,6 +309,7 @@ class MonitoringService:
         self.s3_bucket = os.getenv("MONITORING_S3_BUCKET")
         self.s3_prefix = os.getenv("MONITORING_S3_PREFIX", "metrics")
         self.enable_s3_upload = os.getenv("ENABLE_MONITORING_S3_UPLOAD", "false").lower() == "true"
+        self.enable_heartbeat = os.getenv("ENABLE_MONITORING_HEARTBEAT", "true").lower() == "true"
         
         # Initialize S3 client if enabled
         if self.enable_s3_upload and self.s3_bucket:
@@ -444,6 +496,12 @@ class MonitoringService:
             
             # Also save a summary JSON
             summary = self.metrics_collector.get_summary_stats()
+            
+            # Add memory profiling if enabled
+            if self.metrics_collector._enable_tracemalloc:
+                memory_profile = self.get_memory_profile()
+                summary['memory_profile'] = memory_profile
+            
             summary_filename = f"summary_{now.strftime('%Y%m%d_%H%M%S')}.json"
             summary_filepath = self.reports_dir / summary_filename
             
@@ -550,14 +608,23 @@ class MonitoringService:
         Periodic report task that generates and uploads monitoring data.
         Currently scheduled to run every 5 minutes (configurable via scheduler).
         Creates small batch files that preserve metrics even if the service crashes.
+        
+        If no metrics collected during the period and heartbeat is enabled,
+        uploads a heartbeat file to prove the service is alive.
         """
         try:
             logger.info("Starting periodic report task...")
             
-            # Only generate report if we have metrics to report
+            # Check if we have metrics to report
             metrics_count = len(self.metrics_collector._metrics)
             if metrics_count == 0:
-                logger.debug("No metrics to report this period - skipping")
+                logger.debug("No metrics to report this period")
+                
+                # Upload heartbeat file if enabled (proves service is alive)
+                if self.enable_heartbeat and self.enable_s3_upload:
+                    await self._upload_heartbeat()
+                else:
+                    logger.debug("Skipping upload (no metrics and heartbeat disabled)")
                 return
             
             # Generate the report with minute prefix
@@ -641,6 +708,71 @@ class MonitoringService:
             )
         except Exception:
             logger.exception("Error logging memory usage")
+
+    def get_memory_profile(self) -> dict:
+        """
+        Get detailed memory profiling information for leak detection.
+        
+        Returns:
+            Dictionary containing:
+            - top_object_types: Count of objects by type (top 20)
+            - total_tracked_objects: Total number of objects tracked by GC
+            - gc_stats: Garbage collector statistics
+            - top_memory_allocations: Largest memory allocations (if tracemalloc enabled)
+            - memory_delta: Change since last snapshot (if tracemalloc enabled)
+        """
+        try:
+            from collections import Counter
+            
+            profile = {}
+            
+            # Object counts by type
+            all_objects = gc.get_objects()
+            type_counts = Counter(type(obj).__name__ for obj in all_objects)
+            profile['top_object_types'] = dict(type_counts.most_common(20))
+            profile['total_tracked_objects'] = len(all_objects)
+            
+            # GC stats
+            gc_counts = gc.get_count()
+            profile['gc_stats'] = {
+                'generation0': gc_counts[0],
+                'generation1': gc_counts[1],
+                'generation2': gc_counts[2],
+                'thresholds': gc.get_threshold(),
+            }
+            
+            # tracemalloc snapshot (if enabled)
+            if tracemalloc.is_tracing():
+                snapshot = tracemalloc.take_snapshot()
+                top_stats = snapshot.statistics('lineno')[:10]
+                profile['top_memory_allocations'] = [
+                    {
+                        'file': stat.traceback.format()[0] if stat.traceback else 'unknown',
+                        'size_mb': round(stat.size / 1024 / 1024, 3),
+                        'count': stat.count
+                    }
+                    for stat in top_stats
+                ]
+                
+                # Calculate delta from last snapshot
+                if self.metrics_collector._last_memory_snapshot:
+                    top_diff = snapshot.compare_to(self.metrics_collector._last_memory_snapshot, 'lineno')[:10]
+                    profile['memory_delta'] = [
+                        {
+                            'file': stat.traceback.format()[0] if stat.traceback else 'unknown',
+                            'size_diff_mb': round(stat.size_diff / 1024 / 1024, 3),
+                            'count_diff': stat.count_diff
+                        }
+                        for stat in top_diff
+                    ]
+                
+                # Store snapshot for next comparison
+                self.metrics_collector._last_memory_snapshot = snapshot
+            
+            return profile
+        except Exception as e:
+            logger.error(f"Error getting memory profile: {e}")
+            return {}
 
     def periodic_gc(self):
         """Periodic garbage collection to free memory (runs every 10 minutes)."""
