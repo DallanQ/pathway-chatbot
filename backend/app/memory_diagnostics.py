@@ -256,7 +256,7 @@ class MemoryDiagnostics:
                 logger.info(
                     f"Memory snapshot taken: "
                     f"RSS={stats['process']['rss_mb']:.1f} MB, "
-                    f"Objects={stats['gc']['total_objects']:,}"
+                    f"Traced={stats['tracemalloc']['current_mb']:.1f} MB"
                 )
                 
                 return stats
