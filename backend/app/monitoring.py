@@ -18,6 +18,8 @@ import asyncio
 from threading import Lock
 import json
 
+from app.memory_diagnostics import get_memory_diagnostics, start_malloc_trimmer
+
 logger = logging.getLogger("uvicorn")
 
 # Configuration constants with environment variable overrides
@@ -284,9 +286,24 @@ class MonitoringService:
         
         # AWS S3 configuration
         self.s3_bucket = os.getenv("MONITORING_S3_BUCKET")
-        self.s3_prefix = os.getenv("MONITORING_S3_PREFIX", "metrics")
+        self.s3_prefix = os.getenv("MONITORING_S3_PREFIX", "pathway-chatbot-backend-monitoring")
         self.enable_s3_upload = os.getenv("ENABLE_MONITORING_S3_UPLOAD", "false").lower() == "true"
         self.enable_heartbeat = os.getenv("ENABLE_MONITORING_HEARTBEAT", "true").lower() == "true"
+        
+        # Check if memory monitoring is enabled
+        enable_memory_monitoring = os.getenv("ENABLE_MEMORY_MONITORING", "true").lower() == "true"
+        
+        # Initialize memory diagnostics if enabled
+        if enable_memory_monitoring:
+            self.memory_diagnostics = get_memory_diagnostics()
+            
+            # Start malloc trimmer (returns memory to OS)
+            malloc_trim_interval = int(os.getenv("MALLOC_TRIM_INTERVAL_SECONDS", "300"))
+            start_malloc_trimmer(period_sec=malloc_trim_interval)
+            logger.info("Memory diagnostics initialized")
+        else:
+            self.memory_diagnostics = None
+            logger.info("Memory diagnostics disabled via ENABLE_MEMORY_MONITORING=false")
         
         # Initialize S3 client if enabled
         if self.enable_s3_upload and self.s3_bucket:
@@ -616,10 +633,19 @@ class MonitoringService:
                     await self._upload_heartbeat()
                 else:
                     logger.debug("Skipping upload (no metrics and heartbeat disabled)")
+                
+                # Still take diagnostic snapshot even if no requests
+                if self.memory_diagnostics:
+                    await self.diagnostic_snapshot_task()
+                
                 return
             
             # Generate and upload report
             success = await self._generate_and_upload_report(prefix="periodic")
+            
+            # ALSO take diagnostic snapshot
+            if self.memory_diagnostics:
+                await self.diagnostic_snapshot_task()
             
             if success:
                 # Clear metrics after successful report
@@ -633,6 +659,88 @@ class MonitoringService:
             
         except Exception as e:
             logger.error(f"Error in periodic report task: {e}", exc_info=True)
+
+    async def diagnostic_snapshot_task(self):
+        """
+        Take comprehensive memory diagnostic snapshot.
+        Schedule this every 5 minutes alongside periodic_report_task.
+        
+        This captures:
+        - Top object types and counts (what's accumulating)
+        - Top memory allocations by line (where allocations happen)
+        - Memory growth since baseline (leak detection)
+        - Recent memory growth trends
+        """
+        if not self.memory_diagnostics:
+            return
+        
+        try:
+            logger.info("Taking diagnostic snapshot...")
+            
+            # Take tracemalloc snapshot
+            snapshot_stats = self.memory_diagnostics.take_snapshot()
+            
+            if snapshot_stats:
+                # Save diagnostic report
+                now = datetime.utcnow()
+                report_filename = f"diagnostic_{now.strftime('%Y%m%d_%H%M%S')}.json"
+                report_filepath = self.reports_dir / report_filename
+                
+                # Generate full diagnostic report
+                success = self.memory_diagnostics.save_diagnostic_report(str(report_filepath))
+                
+                if success and self.enable_s3_upload:
+                    # Upload to S3
+                    await self.upload_to_s3(str(report_filepath))
+                    # Clean up local file
+                    report_filepath.unlink()
+                    
+                logger.info("Diagnostic snapshot completed")
+        
+        except Exception as e:
+            logger.error(f"Error in diagnostic snapshot task: {e}", exc_info=True)
+
+    async def generate_memory_leak_report(self) -> Optional[str]:
+        """
+        NEW METHOD: Generate a special memory leak analysis report.
+        Call this manually when you suspect a leak, or schedule it periodically.
+        """
+        if not self.memory_diagnostics:
+            logger.warning("Memory diagnostics not enabled, cannot generate leak report")
+            return None
+        
+        try:
+            logger.info("Generating memory leak analysis report...")
+            
+            # Get comprehensive diagnostic report
+            report = self.memory_diagnostics.full_diagnostic_report()
+            
+            if not report:
+                return None
+            
+            # Add monitoring context
+            report["monitoring_summary"] = self.metrics_collector.get_summary_stats()
+            
+            # Save to JSON
+            now = datetime.utcnow()
+            filename = f"LEAK_ANALYSIS_{now.strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = self.reports_dir / filename
+            
+            with open(filepath, 'w') as f:
+                json.dump(report, f, indent=2, default=str)
+            
+            logger.info(f"Memory leak report generated: {filename}")
+            
+            # Upload to S3 if enabled
+            if self.enable_s3_upload:
+                await self.upload_to_s3(str(filepath))
+                filepath.unlink()
+            
+            return str(filepath)
+            
+        except Exception as e:
+            logger.error(f"Error generating leak report: {e}", exc_info=True)
+            return None
 
     def cleanup_old_reports(self):
         """Delete local report files older than configured retention period."""
@@ -673,6 +781,21 @@ class MonitoringService:
             error_rate = summary.get("error_rate", 0.0)
             avg_resp = summary.get("avg_response_time_seconds", 0.0)
             uptime_hours = summary.get("uptime_hours", 0.0)
+            
+            # Get diagnostic stats if memory monitoring is enabled
+            diagnostic_info = ""
+            if self.memory_diagnostics:
+                diag_stats = self.memory_diagnostics.get_memory_stats()
+                total_objects = diag_stats.get("gc", {}).get("total_objects", 0)
+                
+                # Get top object types
+                top_objects = self.memory_diagnostics.get_top_objects(limit=5)
+                top_objects_str = ", ".join([
+                    f"{obj['type']}({obj['count']:,})" 
+                    for obj in top_objects[:3]
+                ])
+                
+                diagnostic_info = f"\n  Python Objects: {total_objects:,} (top: {top_objects_str})"
 
             logger.info(
                 f"System Health Check:\n"
@@ -683,6 +806,7 @@ class MonitoringService:
                 f"  Avg Response Time: {avg_resp:.3f}s\n"
                 f"  Uptime: {uptime_hours:.2f} hours\n"
                 f"  Metrics Buffer: {len(self.metrics_collector._metrics):,}/{self.metrics_collector.MAX_METRICS_BUFFER:,}"
+                f"{diagnostic_info}"
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}", exc_info=True)
@@ -693,23 +817,59 @@ class MonitoringService:
             # Collect memory metrics before GC
             metrics_before = self.metrics_collector.collect_system_metrics()
             memory_before = metrics_before.get('memory_rss_mb', 0)
+            
+            # Get object count before if memory diagnostics enabled
+            objects_before = 0
+            if self.memory_diagnostics:
+                objects_before = len(gc.get_objects())
 
             # Force garbage collection
             collected = gc.collect()
 
             # Collect memory metrics after GC
             metrics_after = self.metrics_collector.collect_system_metrics()
-            memory_after = metrics_after.get('memory_rss_mb', 0)
+            memory_after_gc = metrics_after.get('memory_rss_mb', 0)
+            
+            # Get object count after if memory diagnostics enabled
+            objects_after = 0
+            objects_freed = 0
+            if self.memory_diagnostics:
+                objects_after = len(gc.get_objects())
+                objects_freed = objects_before - objects_after
+            
+            # Call malloc_trim to return memory to OS if memory diagnostics enabled
+            trim_success = False
+            memory_after_trim = memory_after_gc
+            if self.memory_diagnostics:
+                trim_success = self.memory_diagnostics.malloc_trim()
+                
+                # Measure memory after trim
+                time.sleep(0.2)
+                metrics_after_trim = self.metrics_collector.collect_system_metrics()
+                memory_after_trim = metrics_after_trim.get('memory_rss_mb', 0)
 
-            # Calculate memory freed
-            memory_freed = memory_before - memory_after
+            # Calculate memory changes
+            memory_freed_by_gc = memory_before - memory_after_gc
+            memory_freed_by_trim = memory_after_gc - memory_after_trim
+            total_freed = memory_before - memory_after_trim
+            
+            # Build log message
+            log_parts = [
+                f"Periodic GC completed:",
+                f"  Collected: {collected} objects"
+            ]
+            
+            if self.memory_diagnostics:
+                log_parts.append(f", {objects_freed:,} objects freed")
+                log_parts.append(f"\n  Memory: {memory_before:.2f} MB -> {memory_after_trim:.2f} MB")
+                log_parts.append(f"\n  Freed by GC: {memory_freed_by_gc:.2f} MB")
+                log_parts.append(f"\n  Freed by malloc_trim: {memory_freed_by_trim:.2f} MB")
+                log_parts.append(f"\n  Total freed: {total_freed:.2f} MB")
+            else:
+                log_parts.append(f"\n  Memory: {memory_before:.2f} MB -> {memory_after_gc:.2f} MB")
+                log_parts.append(f"\n  Freed: {memory_freed_by_gc:.2f} MB")
 
-            logger.info(
-                f"Periodic GC completed: "
-                f"collected {collected} objects, "
-                f"memory: {memory_before:.2f} MB -> {memory_after:.2f} MB "
-                f"(freed {memory_freed:.2f} MB)"
-            )
+            logger.info("".join(log_parts))
 
         except Exception as e:
             logger.error(f"Error in periodic GC: {e}")

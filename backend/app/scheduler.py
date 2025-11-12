@@ -33,6 +33,7 @@ class MonitoringScheduler:
     REPORT_INTERVAL_MINUTES = safe_int_env("MONITORING_REPORT_INTERVAL_MINUTES", 5)
     GC_INTERVAL_MINUTES = safe_int_env("MONITORING_GC_INTERVAL_MINUTES", 10)
     MEMORY_LOG_INTERVAL_MINUTES = safe_int_env("MONITORING_MEMORY_LOG_INTERVAL_MINUTES", 60)
+    LEAK_ANALYSIS_INTERVAL_MINUTES = safe_int_env("MONITORING_LEAK_ANALYSIS_INTERVAL_MINUTES", 5)
     
     def __init__(self):
         # Configure scheduler with timezone and job defaults
@@ -138,6 +139,21 @@ class MonitoringScheduler:
             else:
                 logger.error("Failed to schedule garbage collection")
 
+            # Schedule memory leak analysis report (every 5 minutes)
+            leak_report_job = self.scheduler.add_job(
+                self._safe_leak_analysis,
+                IntervalTrigger(minutes=self.LEAK_ANALYSIS_INTERVAL_MINUTES),
+                id='leak_analysis',
+                name=f'Generate memory leak analysis report every {self.LEAK_ANALYSIS_INTERVAL_MINUTES} minutes',
+                replace_existing=True
+            )
+            if leak_report_job:
+                logger.info(
+                    f"✓ Scheduled memory leak analysis (every {self.LEAK_ANALYSIS_INTERVAL_MINUTES} minutes)"
+                )
+            else:
+                logger.error("Failed to schedule leak analysis")
+
             # Start the scheduler
             self.scheduler.start()
             self.is_running = True
@@ -185,6 +201,13 @@ class MonitoringScheduler:
             self.monitoring_service.periodic_gc()
         except Exception as e:
             logger.error(f"Error in garbage collection: {e}", exc_info=True)
+    
+    async def _safe_leak_analysis(self):
+        """Wrapper for memory leak analysis with error handling."""
+        try:
+            await self.monitoring_service.generate_memory_leak_report()
+        except Exception as e:
+            logger.error(f"Error in leak analysis task: {e}", exc_info=True)
     
     async def shutdown(self, timeout: int = 30):
         """
