@@ -115,7 +115,8 @@ class MemoryDiagnostics:
                         "generation_2": gc_counts[2],
                     },
                     "thresholds": gc.get_threshold(),
-                    "total_objects": len(gc.get_objects()),
+                    # Note: gc.get_objects() removed - it creates massive memory spikes (400MB+)
+                    # on systems with 600K+ objects. Use tracemalloc stats instead.
                 },
             }
             
@@ -133,39 +134,39 @@ class MemoryDiagnostics:
             logger.error(f"Error collecting memory stats: {e}", exc_info=True)
             return {}
     
-    def get_top_objects(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_top_allocations_by_type(self, limit: int = 20) -> List[Dict[str, Any]]:
         """
-        Get top object types by count and estimated size.
-        CRITICAL for finding memory leaks - shows what Python objects are accumulating.
+        Get top memory allocations grouped by file/line.
+        REPLACEMENT for get_top_objects() - uses tracemalloc instead of gc.get_objects().
+        
+        This is much more memory-efficient and still shows WHERE memory is allocated.
         """
-        if not self._monitoring_enabled:
+        if not self._monitoring_enabled or not tracemalloc.is_tracing():
             return []
         
         try:
-            # Collect all objects
-            all_objects = gc.get_objects()
+            snapshot = tracemalloc.take_snapshot()
             
-            # Count by type
-            type_counts = Counter(type(obj).__name__ for obj in all_objects)
+            # Group by traceback (file + line)
+            top_stats = snapshot.statistics('traceback')
             
-            # Get top types with size estimates
-            top_types = []
-            for type_name, count in type_counts.most_common(limit):
-                # Get sample object to estimate size
-                sample_objs = [obj for obj in all_objects if type(obj).__name__ == type_name][:5]
-                avg_size = sum(sys.getsizeof(obj) for obj in sample_objs) / len(sample_objs) if sample_objs else 0
+            allocations = []
+            for stat in top_stats[:limit]:
+                # Get the most relevant frame (skip tracemalloc internals)
+                frames = stat.traceback.format()
+                location = frames[0] if frames else "unknown"
                 
-                top_types.append({
-                    "type": type_name,
-                    "count": count,
-                    "avg_size_bytes": int(avg_size),
-                    "estimated_total_mb": (count * avg_size) / BYTES_TO_MB,
+                allocations.append({
+                    "location": location,
+                    "size_mb": stat.size / BYTES_TO_MB,
+                    "count": stat.count,
+                    "avg_size_bytes": stat.size / stat.count if stat.count > 0 else 0,
                 })
             
-            return top_types
+            return allocations
             
         except Exception as e:
-            logger.error(f"Error getting top objects: {e}", exc_info=True)
+            logger.error(f"Error getting top allocations: {e}", exc_info=True)
             return []
     
     def get_tracemalloc_top_allocations(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -341,8 +342,8 @@ class MemoryDiagnostics:
                 "timestamp": datetime.utcnow().isoformat(),
                 "monitoring_enabled": True,
                 "basic_stats": self.get_memory_stats(),
-                "top_objects": self.get_top_objects(limit=20),
-                "top_allocations": self.get_tracemalloc_top_allocations(limit=10),
+                "top_allocations_by_type": self.get_top_allocations_by_type(limit=20),
+                "top_allocations_by_line": self.get_tracemalloc_top_allocations(limit=10),
                 "baseline_comparison": self.compare_to_baseline(limit=10),
                 "recent_growth": self.compare_recent_snapshots(limit=10),
             }

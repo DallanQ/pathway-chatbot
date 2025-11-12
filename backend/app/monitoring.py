@@ -8,6 +8,7 @@ import os
 import logging
 import time
 import gc
+import tracemalloc
 import psutil
 import pandas as pd
 from datetime import datetime, timedelta
@@ -785,17 +786,14 @@ class MonitoringService:
             # Get diagnostic stats if memory monitoring is enabled
             diagnostic_info = ""
             if self.memory_diagnostics:
-                diag_stats = self.memory_diagnostics.get_memory_stats()
-                total_objects = diag_stats.get("gc", {}).get("total_objects", 0)
-                
-                # Get top object types
-                top_objects = self.memory_diagnostics.get_top_objects(limit=5)
-                top_objects_str = ", ".join([
-                    f"{obj['type']}({obj['count']:,})" 
-                    for obj in top_objects[:3]
-                ])
-                
-                diagnostic_info = f"\n  Python Objects: {total_objects:,} (top: {top_objects_str})"
+                # Get top allocations from tracemalloc (avoids expensive gc.get_objects())
+                top_allocs = self.memory_diagnostics.get_top_allocations_by_type(limit=3)
+                if top_allocs:
+                    top_allocs_str = ", ".join([
+                        f"{alloc['location'].split('/')[-1][:30]}({alloc['size_mb']:.1f}MB)" 
+                        for alloc in top_allocs[:3]
+                    ])
+                    diagnostic_info = f"\n  Top Allocations: {top_allocs_str}"
 
             logger.info(
                 f"System Health Check:\n"
@@ -818,10 +816,10 @@ class MonitoringService:
             metrics_before = self.metrics_collector.collect_system_metrics()
             memory_before = metrics_before.get('memory_rss_mb', 0)
             
-            # Get object count before if memory diagnostics enabled
-            objects_before = 0
-            if self.memory_diagnostics:
-                objects_before = len(gc.get_objects())
+            # Get tracemalloc stats before if memory diagnostics enabled
+            traced_before = 0
+            if self.memory_diagnostics and tracemalloc.is_tracing():
+                traced_before, _ = tracemalloc.get_traced_memory()
 
             # Force garbage collection
             collected = gc.collect()
@@ -830,12 +828,12 @@ class MonitoringService:
             metrics_after = self.metrics_collector.collect_system_metrics()
             memory_after_gc = metrics_after.get('memory_rss_mb', 0)
             
-            # Get object count after if memory diagnostics enabled
-            objects_after = 0
-            objects_freed = 0
-            if self.memory_diagnostics:
-                objects_after = len(gc.get_objects())
-                objects_freed = objects_before - objects_after
+            # Get tracemalloc stats after if memory diagnostics enabled
+            traced_after = 0
+            traced_freed = 0
+            if self.memory_diagnostics and tracemalloc.is_tracing():
+                traced_after, _ = tracemalloc.get_traced_memory()
+                traced_freed = traced_before - traced_after
             
             # Call malloc_trim to return memory to OS if memory diagnostics enabled
             trim_success = False
@@ -860,7 +858,7 @@ class MonitoringService:
             ]
             
             if self.memory_diagnostics:
-                log_parts.append(f", {objects_freed:,} objects freed")
+                log_parts.append(f", freed {traced_freed / BYTES_TO_MB:.2f} MB (tracemalloc)")
                 log_parts.append(f"\n  Memory: {memory_before:.2f} MB -> {memory_after_trim:.2f} MB")
                 log_parts.append(f"\n  Freed by GC: {memory_freed_by_gc:.2f} MB")
                 log_parts.append(f"\n  Freed by malloc_trim: {memory_freed_by_trim:.2f} MB")
