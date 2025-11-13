@@ -98,6 +98,11 @@ async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down monitoring scheduler...")
     await monitoring_scheduler.shutdown()
+    
+    # Close shared HTTP client
+    from app.http_client import close_http_client
+    await close_http_client()
+    
     logger.info("Application shutdown complete")
 
 

@@ -23,4 +23,6 @@ FROM build as release
 
 COPY . .
 
-CMD ["python", "main.py"]
+# Use gunicorn with UvicornWorker for production
+# Implementing Worker rotation to prevent memory leaks
+CMD ["gunicorn", "main:app", "--config", "gunicorn.conf.py"]

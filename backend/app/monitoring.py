@@ -288,17 +288,29 @@ class MonitoringService:
         self.enable_s3_upload = os.getenv("ENABLE_MONITORING_S3_UPLOAD", "false").lower() == "true"
         self.enable_heartbeat = os.getenv("ENABLE_MONITORING_HEARTBEAT", "true").lower() == "true"
         
-        # Initialize S3 client if enabled
+        # Initialize S3 client if enabled (Right-size connection pools)
         if self.enable_s3_upload and self.s3_bucket:
             try:
                 import boto3
+                from botocore.config import Config
+                
+                # Configure connection pooling to prevent leaks
+                boto_config = Config(
+                    max_pool_connections=20,  # Limit connection pool size
+                    retries={'max_attempts': 3, 'mode': 'standard'}
+                )
+                
                 self.s3_client = boto3.client(
                     's3',
                     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
                     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-                    region_name=os.getenv("AWS_REGION", "us-east-1")
+                    region_name=os.getenv("AWS_REGION", "us-east-1"),
+                    config=boto_config
                 )
-                logger.info(f"S3 monitoring enabled: bucket={self.s3_bucket}, prefix={self.s3_prefix}")
+                logger.info(
+                    f"S3 monitoring enabled: bucket={self.s3_bucket}, "
+                    f"prefix={self.s3_prefix}, max_pool_connections=20"
+                )
                 
             except Exception as e:
                 logger.error(f"Failed to initialize S3 client: {e}")
