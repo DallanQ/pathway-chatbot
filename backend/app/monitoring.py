@@ -503,8 +503,10 @@ class MonitoringService:
                     
                     # Clean up local files after successful upload
                     if success and summary_success:
-                        Path(filepath).unlink()
-                        Path(summary_filepath).unlink()
+                        if Path(filepath).exists():
+                            Path(filepath).unlink()
+                        if Path(summary_filepath).exists():
+                            Path(summary_filepath).unlink()
             
             return success
             
