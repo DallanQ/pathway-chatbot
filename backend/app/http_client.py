@@ -22,10 +22,10 @@ def get_http_client() -> httpx.AsyncClient:
     global _http_client
     
     if _http_client is None:
-        # Configure limits
+        # Configure limits - conservative for low-traffic apps (Step 3)
         limits = httpx.Limits(
-            max_connections=100,        # Total connection pool size
-            max_keepalive_connections=20  # Persistent connections
+            max_connections=10,        # Total connection pool size
+            max_keepalive_connections=2  # Persistent connections
         )
         
         timeout = httpx.Timeout(

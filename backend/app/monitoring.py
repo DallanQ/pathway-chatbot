@@ -7,7 +7,6 @@ Generates Parquet reports and uploads to S3.
 import os
 import logging
 import time
-import gc
 import psutil
 import pandas as pd
 from datetime import datetime, timedelta
@@ -349,7 +348,8 @@ class MonitoringService:
             success = await self.upload_to_s3(str(heartbeat_filepath))
             if success:
                 # Clean up local file after successful upload
-                heartbeat_filepath.unlink()
+                if heartbeat_filepath.exists():
+                    heartbeat_filepath.unlink()
                 logger.info(f"Heartbeat uploaded: {heartbeat_filename} (no metrics this period)")
             
         except Exception as e:
@@ -399,7 +399,7 @@ class MonitoringService:
             # Upload BOOT report immediately
             if self.enable_s3_upload:
                 success = await self.upload_to_s3(str(boot_filepath))
-                if success:
+                if success and boot_filepath.exists():
                     boot_filepath.unlink()
             
             if not had_unsaved_files:
@@ -415,7 +415,8 @@ class MonitoringService:
                 if success:
                     uploaded_count += 1
                     # Delete after successful upload
-                    filepath.unlink()
+                    if filepath.exists():
+                        filepath.unlink()
                     logger.info(f"Recovered and uploaded: {filepath.name}")
             
             logger.info(f"Startup recovery complete: {uploaded_count} files uploaded + 1 BOOT report")
@@ -462,7 +463,7 @@ class MonitoringService:
             # Upload alert
             if self.enable_s3_upload:
                 success = await self.upload_to_s3(str(alert_filepath))
-                if success:
+                if success and alert_filepath.exists():
                     alert_filepath.unlink()
             
             logger.critical(f"Emergency alert saved: {alert_filename}")
@@ -659,7 +660,7 @@ class MonitoringService:
             for pattern in ["*.parquet", "*.json"]:
                 for filepath in self.reports_dir.glob(pattern):
                     try:
-                        if filepath.stat().st_mtime < cutoff.timestamp():
+                        if filepath.exists() and filepath.stat().st_mtime < cutoff.timestamp():
                             filepath.unlink()
                             deleted_count += 1
                     except Exception as e:
@@ -700,33 +701,6 @@ class MonitoringService:
             )
         except Exception as e:
             logger.error(f"Error logging memory usage: {e}", exc_info=True)
-
-    def periodic_gc(self):
-        """Periodic garbage collection to free memory (runs every 10 minutes)."""
-        try:
-            # Collect memory metrics before GC
-            metrics_before = self.metrics_collector.collect_system_metrics()
-            memory_before = metrics_before.get('memory_rss_mb', 0)
-
-            # Force garbage collection
-            collected = gc.collect()
-
-            # Collect memory metrics after GC
-            metrics_after = self.metrics_collector.collect_system_metrics()
-            memory_after = metrics_after.get('memory_rss_mb', 0)
-
-            # Calculate memory freed
-            memory_freed = memory_before - memory_after
-
-            logger.info(
-                f"Periodic GC completed: "
-                f"collected {collected} objects, "
-                f"memory: {memory_before:.2f} MB -> {memory_after:.2f} MB "
-                f"(freed {memory_freed:.2f} MB)"
-            )
-
-        except Exception as e:
-            logger.error(f"Error in periodic GC: {e}")
 
 
 # Global monitoring service instance

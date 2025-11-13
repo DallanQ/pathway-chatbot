@@ -1,4 +1,4 @@
-FROM python:3.11 as build
+FROM python:3.12-slim as build
 
 WORKDIR /app
 
@@ -23,6 +23,18 @@ FROM build as release
 
 COPY . .
 
-# Use gunicorn with UvicornWorker for production
-# Implementing Worker rotation to prevent memory leaks
-CMD ["gunicorn", "main:app", "--config", "gunicorn.conf.py"]
+# Use gunicorn with UvicornWorker for production (Step 1)
+# Worker rotation prevents memory leaks by restarting workers after 500 requests
+CMD [ \
+    "gunicorn", \
+    "main:app", \
+    "-k", "uvicorn.workers.UvicornWorker", \
+    "-w", "1", \
+    "--max-requests", "500", \
+    "--max-requests-jitter", "100", \
+    "--timeout", "120", \
+    "--graceful-timeout", "120", \
+    "--keep-alive", "10", \
+    "--log-level", "info", \
+    "--access-logfile", "-" \
+]

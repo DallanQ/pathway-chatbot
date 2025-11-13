@@ -123,20 +123,7 @@ class MonitoringScheduler:
             else:
                 logger.error("Failed to schedule memory logging")
 
-            # Schedule periodic garbage collection
-            gc_job = self.scheduler.add_job(
-                self._safe_gc,
-                IntervalTrigger(minutes=self.GC_INTERVAL_MINUTES),
-                id='periodic_gc',
-                name=f'Periodic garbage collection every {self.GC_INTERVAL_MINUTES} minutes',
-                replace_existing=True
-            )
-            if gc_job:
-                logger.info(
-                    f"✓ Scheduled periodic garbage collection (every {self.GC_INTERVAL_MINUTES} minutes)"
-                )
-            else:
-                logger.error("Failed to schedule garbage collection")
+            # Periodic GC removed (Step 4) - relying on malloc_trim instead
 
             # Start the scheduler
             self.scheduler.start()
@@ -178,13 +165,6 @@ class MonitoringScheduler:
             self.monitoring_service.log_memory_usage()
         except Exception as e:
             logger.error(f"Error in memory logging: {e}", exc_info=True)
-    
-    async def _safe_gc(self):
-        """Wrapper for garbage collection with error handling."""
-        try:
-            self.monitoring_service.periodic_gc()
-        except Exception as e:
-            logger.error(f"Error in garbage collection: {e}", exc_info=True)
     
     async def shutdown(self, timeout: int = 30):
         """
