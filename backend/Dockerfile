@@ -1,8 +1,12 @@
-FROM python:3.11 as build
+FROM python:3.12-slim as build
 
 WORKDIR /app
 
 ENV PYTHONPATH=/app
+
+# Install curl for Poetry installation
+# Note: python:3.12-slim doesn't include curl by default (unlike python:3.11)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python && \
@@ -23,4 +27,18 @@ FROM build as release
 
 COPY . .
 
-CMD ["python", "main.py"]
+# Use gunicorn with UvicornWorker for production (Step 1)
+# Worker rotation prevents memory leaks by restarting workers after 500 requests
+CMD [ \
+    "gunicorn", \
+    "main:app", \
+    "-k", "uvicorn.workers.UvicornWorker", \
+    "-w", "1", \
+    "--max-requests", "500", \
+    "--max-requests-jitter", "100", \
+    "--timeout", "120", \
+    "--graceful-timeout", "120", \
+    "--keep-alive", "10", \
+    "--log-level", "info", \
+    "--access-logfile", "-" \
+]
