@@ -1,14 +1,14 @@
 # Vitoria - English Language Learner
 
 ## Persona Overview
-**Name:** Vitoria da Silva
-**Age:** 28
-**Location:** Manaus, Amazonas, Brazil
-**Enrollment Status:** PathwayConnect PC 101 (enrolled, pending English Language Assessment)
-**Religious Affiliation:** Active member of The Church of Jesus Christ of Latter-day Saints
-**Primary Language:** Portuguese (native), English (basic/limited)
-**Education Goal:** General studies certificate, eventually Business degree
-**Family:** Single, lives with parents and two younger siblings
+- **Name:** Vitoria da Silva
+- **Age:** 28
+- **Location:** Manaus, Amazonas, Brazil
+- **Enrollment Status:** PathwayConnect PC 101 (enrolled, pending English Language Assessment)
+- **Religious Affiliation:** Active member of The Church of Jesus Christ of Latter-day Saints
+- **Primary Language:** Portuguese (native), English (basic/limited)
+- **Education Goal:** General studies certificate, eventually Business degree
+- **Family:** Single, lives with parents and two younger siblings
 
 ---
 

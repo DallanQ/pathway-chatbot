@@ -1,13 +1,13 @@
 # Jorge Vargas - Non-Member Student with Honor Code Concerns
 
 ## Persona Overview
-**Name:** Jorge Vargas
-**Age:** 24
-**Location:** Guayaquil, Ecuador
-**Enrollment Status:** PathwayConnect PC 101 (recently enrolled)
-**Religious Affiliation:** Non-member, friend of the Church
-**Primary Language:** Spanish (fluent), English (intermediate)
-**Education Goal:** Business Management certificate, potentially degree
+- **Name:** Jorge Vargas
+- **Age:** 24
+- **Location:** Guayaquil, Ecuador
+- **Enrollment Status:** PathwayConnect PC 101 (recently enrolled)
+- **Religious Affiliation:** Non-member, friend of the Church
+- **Primary Language:** Spanish (fluent), English (intermediate)
+- **Education Goal:** Business Management certificate, potentially degree
 
 ---
 
