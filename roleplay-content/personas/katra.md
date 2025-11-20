@@ -1,14 +1,14 @@
 # Katra - Adult Learner with Low Confidence
 
 ## Persona Overview
-**Name:** Katra
-**Age:** 41
-**Location:** Port Moresby, Papua New Guinea
-**Enrollment Status:** PathwayConnect PC 101 (recently enrolled)
-**Religious Affiliation:** Active member of The Church of Jesus Christ of Latter-day Saints
-**Primary Language:** English (fluent), Tok Pisin (native)
-**Education Goal:** Hospitality and Tourism Management certificate
-**Family:** Married with three children (ages 18, 15, and 11)
+- **Name:** Katra
+- **Age:** 41
+- **Location:** Port Moresby, Papua New Guinea
+- **Enrollment Status:** PathwayConnect PC 101 (recently enrolled)
+- **Religious Affiliation:** Active member of The Church of Jesus Christ of Latter-day Saints
+- **Primary Language:** English (fluent), Tok Pisin (native)
+- **Education Goal:** Hospitality and Tourism Management certificate
+- **Family:** Married with three children (ages 18, 15, and 11)
 
 ---
 
