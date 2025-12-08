@@ -5,7 +5,6 @@ from app.config import DATA_DIR
 
 load_dotenv()
 
-import gc
 import logging
 import os
 
@@ -77,22 +76,32 @@ app.include_router(file_upload_router, prefix="/api/chat/upload")
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
-    # Configure garbage collection for memory-constrained environment (2GB instance)
-    # More aggressive thresholds than default (700, 10, 10)
-    gc.set_threshold(700, 10, 5)
-    gc.enable()
-    logger.info(f"Garbage collection configured with thresholds: {gc.get_threshold()}")
-
-    logger.info("Starting monitoring scheduler...")
-    monitoring_scheduler.start()
+    # Start malloc_trim to return freed memory to OS (Step 2)
+    from app.memory_trim import start_malloc_trimmer
+    start_malloc_trimmer(period_sec=300)  # Every 5 minutes
+    
+    # Disabled monitoring for now - relying on Render's memory tracking instead
+    # logger.info("Starting monitoring scheduler...")
+    # monitoring_scheduler.start()
+    
+    # # Run startup recovery to upload any unsaved reports from previous session
+    # logger.info("Running monitoring startup recovery...")
+    # await monitoring_scheduler.monitoring_service.startup_recovery()
+    
     logger.info("Application startup complete")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
-    logger.info("Shutting down monitoring scheduler...")
-    monitoring_scheduler.shutdown()
+    # Disabled monitoring for now - relying on Render's memory tracking instead
+    # logger.info("Shutting down monitoring scheduler...")
+    # await monitoring_scheduler.shutdown()
+    
+    # Close shared HTTP client
+    from app.http_client import close_http_client
+    await close_http_client()
+    
     logger.info("Application shutdown complete")
 
 
