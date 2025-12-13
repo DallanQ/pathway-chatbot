@@ -12,6 +12,8 @@ export default function ChatSection() {
   const [requestData, setRequestData] = useState<any>();
   const [isAcmChecked, setIsAcmChecked] = useState(false);
   const [hasStartedChat, setHasStartedChat] = useState(false);
+  const [showAcmTooltip, setShowAcmTooltip] = useState(false);
+  const [tooltipShownThisSession, setTooltipShownThisSession] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -39,6 +41,9 @@ export default function ChatSection() {
   });
 
   const customHandleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    // Dismiss tooltip when form is submitted
+    setShowAcmTooltip(false);
+    
     const role = isAcmChecked ? "ACM" : "missionary";
     const data = {
       question: input,
@@ -60,6 +65,36 @@ export default function ChatSection() {
 
   // Check if there are any messages
   const hasMessages = messages.length > 0;
+
+  // Detect "don't know" responses and show tooltip (once per session)
+  useEffect(() => {
+    // Only check when loading completes and tooltip hasn't been shown yet
+    if (!isLoading && !tooltipShownThisSession && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // Check if last message is from assistant and contains "don't know" pattern
+      if (lastMessage.role === "assistant") {
+        const content = lastMessage.content.toLowerCase();
+        const dontKnowPattern = /sorry.*don't know|not able to answer|can't answer|can't assist|unable to answer/i;
+        
+        if (dontKnowPattern.test(content)) {
+          setShowAcmTooltip(true);
+          setTooltipShownThisSession(true);
+        }
+      }
+    }
+  }, [isLoading, messages, tooltipShownThisSession]);
+
+  // Handler to dismiss tooltip
+  const handleDismissTooltip = () => {
+    setShowAcmTooltip(false);
+  };
+
+  // Handler to toggle ACM mode and dismiss tooltip
+  const handleToggleAcm = (checked: boolean) => {
+    setIsAcmChecked(checked);
+    setShowAcmTooltip(false);
+  };
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -120,7 +155,9 @@ export default function ChatSection() {
             setRequestData={setRequestData}
             isAcmMode={isAcmChecked}
             isAcmChecked={isAcmChecked}
-            setIsAcmChecked={setIsAcmChecked}
+            setIsAcmChecked={handleToggleAcm}
+            showAcmTooltip={showAcmTooltip}
+            onDismissTooltip={handleDismissTooltip}
           />
           
           {/* Disclaimer under input - only show before first message */}

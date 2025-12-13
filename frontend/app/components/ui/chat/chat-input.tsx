@@ -7,6 +7,7 @@ import UploadImagePreview from "../upload-image-preview";
 import { ChatHandler } from "./chat.interface";
 import { useFile } from "./hooks/use-file";
 import { LlamaCloudSelector } from "./widgets/LlamaCloudSelector";
+import AcmToggleTooltip from "./acm-toggle-tooltip";
 import { useRef, useEffect } from "react";
 
 const ALLOWED_EXTENSIONS = ["png", "jpg", "jpeg", "csv", "pdf", "txt", "docx"];
@@ -30,6 +31,8 @@ export default function ChatInput(
     isAcmMode?: boolean;
     isAcmChecked?: boolean;
     setIsAcmChecked?: (checked: boolean) => void;
+    showAcmTooltip?: boolean;
+    onDismissTooltip?: () => void;
   },
 ) {
   const {
@@ -163,22 +166,31 @@ export default function ChatInput(
         
         {/* Bottom row - ACM Toggle and Send Button */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            {/* ACM Toggle Button */}
+          <div className="flex items-center gap-2 relative">
+            {/* ACM Toggle Button with Tooltip */}
             {props.setIsAcmChecked && (
-              <button
-                type="button"
-                onClick={() => props.setIsAcmChecked!(!props.isAcmChecked)}
-                className={`
-                  flex-shrink-0 px-3 py-1.5 rounded-full font-semibold text-xs transition-all
-                  ${props.isAcmChecked 
-                    ? 'bg-[#FFC328] text-[#454540]' 
-                    : 'bg-transparent border border-[#73726C] dark:border-[#646362] text-[#73726C] dark:text-[#B5B5B5]'
-                  }
-                `}
-              >
-                ACMs Only
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => props.setIsAcmChecked!(!props.isAcmChecked)}
+                  className={`
+                    flex-shrink-0 px-3 py-1.5 rounded-full font-semibold text-xs transition-all
+                    ${props.isAcmChecked 
+                      ? 'bg-[#FFC328] text-[#454540]' 
+                      : 'bg-transparent border border-[#73726C] dark:border-[#646362] text-[#73726C] dark:text-[#B5B5B5]'
+                    }
+                  `}
+                >
+                  ACMs Only
+                </button>
+                
+                {/* Tooltip */}
+                <AcmToggleTooltip
+                  show={props.showAcmTooltip || false}
+                  isAcmChecked={props.isAcmChecked || false}
+                  onClose={props.onDismissTooltip || (() => {})}
+                />
+              </div>
             )}
             
             {/* Placeholder for other icons */}
