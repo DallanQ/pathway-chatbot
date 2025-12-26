@@ -56,6 +56,14 @@ async def chat(
     try:
         last_message_content = data.get_last_message_content()
         
+        # Get real client IP and geo data BEFORE security validation
+        # This ensures we capture IP/location for both blocked and allowed requests
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+        if "," in client_ip:
+            client_ip = client_ip.split(",")[0].strip()
+        
+        geo_data = await get_geo_data(client_ip)
+        
         # Security validation - primary defense with contextual responses
         is_suspicious, blocked_message, security_details = await InputValidator.validate_input_security_async(last_message_content)
         
@@ -72,7 +80,7 @@ async def chat(
                 f"IP: {request.client.host if request.client else 'unknown'}"
             )
             
-            # Send blocked request to Langfuse with security metadata
+            # Send blocked request to Langfuse with security metadata and geo_data
             langfuse_context.update_current_trace(
                 input=last_message_content,
                 output=blocked_message,
@@ -80,9 +88,14 @@ async def chat(
                     "security_blocked": True,
                     "risk_level": security_details.get("risk_level", "UNKNOWN"),
                     "security_details": security_details,
-                    "blocked_reason": security_details.get("reason", "security_validation_failed")
+                    "blocked_reason": security_details.get("reason", "security_validation_failed"),
+                    "user_language": user_language,
+                    **geo_data
                 }
             )
+            
+            # Flush Langfuse trace before streaming response to ensure data is captured
+            langfuse.flush()
             
             # Return blocked message as normal response (not HTTP error)
             from llama_index.core.llms import MessageRole
@@ -146,15 +159,6 @@ async def chat(
             else last_message_content
         )
         
-        # Get real client IP from headers (handles proxies/load balancers)
-        # Render and other platforms put the real IP in X-Forwarded-For
-        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
-        if "," in client_ip:
-            # X-Forwarded-For can contain multiple IPs, get the first (original client)
-            client_ip = client_ip.split(",")[0].strip()
-        
-        geo_data = await get_geo_data(client_ip)
-        
         # Detect user's language for consistent frontend localization
         user_language = LocalizationManager.detect_language(last_message_content)
         
@@ -215,6 +219,7 @@ async def chat(
 @r.post("/request")
 @observe()
 async def chat_request(
+    request: Request,
     data: ChatData,
 ) -> Result:
     risk_level = None
@@ -222,6 +227,14 @@ async def chat_request(
     
     try:
         last_message_content = data.get_last_message_content()
+        
+        # Get real client IP and geo data BEFORE security validation
+        # This ensures we capture IP/location for both blocked and allowed requests
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+        if "," in client_ip:
+            client_ip = client_ip.split(",")[0].strip()
+        
+        geo_data = await get_geo_data(client_ip)
         
         # Security validation - primary defense with contextual responses
         is_suspicious, blocked_message, security_details = await InputValidator.validate_input_security_async(last_message_content)
@@ -235,7 +248,10 @@ async def chat_request(
                 f"Reason: {security_details.get('reason', 'unknown')}"
             )
             
-            # Send blocked request to Langfuse with security metadata
+            # Detect user's language for consistent blocked response localization
+            user_language = LocalizationManager.detect_language(last_message_content)
+            
+            # Send blocked request to Langfuse with security metadata and geo_data
             langfuse_context.update_current_trace(
                 input=last_message_content,
                 output=blocked_message,
@@ -243,9 +259,14 @@ async def chat_request(
                     "security_blocked": True,
                     "risk_level": security_details.get("risk_level", "UNKNOWN"),
                     "security_details": security_details,
-                    "blocked_reason": security_details.get("reason", "security_validation_failed")
+                    "blocked_reason": security_details.get("reason", "security_validation_failed"),
+                    "user_language": user_language,
+                    **geo_data
                 }
             )
+            
+            # Flush Langfuse trace before returning to ensure data is captured
+            langfuse.flush()
             
             # Return blocked message as normal response
             return Result(
@@ -309,7 +330,8 @@ async def chat_request(
         enhanced_metadata = {
             "nodes": retrieved,
             "security_validation": security_metadata,
-            "user_language": user_language
+            "user_language": user_language,
+            **geo_data
         }
         
         # Set the input, output and metadata of Langfuse

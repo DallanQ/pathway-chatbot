@@ -29,7 +29,6 @@ async def get_geo_data(ip_address: str) -> dict:
         city = data.get("city", {}).get("name")
 
         return {
-            "ip": ip_address,
             "country": country,
             "state": state,
             "city": city,
